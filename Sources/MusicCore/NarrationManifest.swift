@@ -19,6 +19,7 @@ public struct NarrationAsset: Codable, Sendable, Equatable {
     public let contentHash: String
     public let file: String
     public let voiceID: String
+    public let voiceLicense: String?
     public let model: String
     public let generatedAt: String
 
@@ -26,12 +27,14 @@ public struct NarrationAsset: Codable, Sendable, Equatable {
         contentHash: String,
         file: String,
         voiceID: String,
+        voiceLicense: String? = nil,
         model: String,
         generatedAt: String
     ) {
         self.contentHash = contentHash
         self.file = file
         self.voiceID = voiceID
+        self.voiceLicense = voiceLicense
         self.model = model
         self.generatedAt = generatedAt
     }

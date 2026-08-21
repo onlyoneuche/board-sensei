@@ -1,4 +1,293 @@
 {
-  "lessons" : {},
+  "lessons" : {
+    "a-altered-resolution" : {
+      "contentHash" : "29faa2a5bc135472f129f228559eefbc05dd239af9d69e3225f57504b90d71e6",
+      "file" : "a-altered-resolution-29faa2a5bc13.wav",
+      "generatedAt" : "2026-08-20T23:52:44Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-bebop-shells" : {
+      "contentHash" : "5d0c3f13aa5e362baef3de1534c7e68ed314592a1233842575e1c509c29fcee2",
+      "file" : "a-bebop-shells-5d0c3f13aa5e.wav",
+      "generatedAt" : "2026-08-20T23:56:22Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-block-melody" : {
+      "contentHash" : "ffd759b9b89f7441bfcc22d4c7f261fc9151c87132fc44a70340a50797bce871",
+      "file" : "a-block-melody-ffd759b9b89f.wav",
+      "generatedAt" : "2026-08-20T23:55:13Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-comping" : {
+      "contentHash" : "fab6432f1c699b454c3be7eb7126cb7c5d84acb49720d0d01218e0b469d21f44",
+      "file" : "a-comping-fab6432f1c69.wav",
+      "generatedAt" : "2026-08-20T23:57:38Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-four-note-cells" : {
+      "contentHash" : "cc9cad25311fd5f95a01a8a259e207f4b8519b824939fced23ff5d2a57910bc2",
+      "file" : "a-four-note-cells-cc9cad25311f.wav",
+      "generatedAt" : "2026-08-20T23:58:14Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-guide-turnaround" : {
+      "contentHash" : "ee918ca50a9c1f577645b17a4d51081771b9260f818a6fc241db248045b9f6b9",
+      "file" : "a-guide-turnaround-ee918ca50a9c.wav",
+      "generatedAt" : "2026-08-20T23:53:57Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-montuno" : {
+      "contentHash" : "5936ccd6e76dc16b2dcf222226a79fbe20e874ea95a2e62b611b414c7686cd3f",
+      "file" : "a-montuno-5936ccd6e76d.wav",
+      "generatedAt" : "2026-08-20T23:56:58Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-pentatonic-super" : {
+      "contentHash" : "fe6e04322dee50710716f16a8060ce0dfc5558c9f5e9ea0bb7b7204e3d24fd5e",
+      "file" : "a-pentatonic-super-fe6e04322dee.wav",
+      "generatedAt" : "2026-08-20T23:53:20Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-personal-etude" : {
+      "contentHash" : "8a961c19ab08a9252a4da55bf6f31093efb2347b443b6ae5cce3e01cd5bb9c21",
+      "file" : "a-personal-etude-8a961c19ab08.wav",
+      "generatedAt" : "2026-08-20T23:58:51Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-quartal-planing" : {
+      "contentHash" : "18f0f00945892d310d038aae3e26a9fa6928913091f7f1deec23b6df5788b102",
+      "file" : "a-quartal-planing-18f0f0094589.wav",
+      "generatedAt" : "2026-08-20T23:54:35Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-stride" : {
+      "contentHash" : "e4660eb57df2b9ccc331384b6fe721627e249265982dfaac1128c7a014bedd36",
+      "file" : "a-stride-e4660eb57df2.wav",
+      "generatedAt" : "2026-08-20T23:55:48Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "a-upper-colors" : {
+      "contentHash" : "5a54a34996f7e9a53732b298028c967dcef278e0192421a5a2e33a97eece9020",
+      "file" : "a-upper-colors-5a54a34996f7.wav",
+      "generatedAt" : "2026-08-20T23:52:08Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-c-major" : {
+      "contentHash" : "c01ca9b4d04c6e099d218fd34bbf443afdc00a3218cc07ddfe139b4008046ad7",
+      "file" : "b-c-major-c01ca9b4d04c.wav",
+      "generatedAt" : "2026-08-20T23:38:05Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-diatonic-thirds" : {
+      "contentHash" : "3383fe88f5936a47f791e3afb2680e4d66a162ae06e733c8af623ec6d8ebe1a8",
+      "file" : "b-diatonic-thirds-3383fe88f593.wav",
+      "generatedAt" : "2026-08-20T23:38:46Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-dominant-tonic" : {
+      "contentHash" : "2276de50e8d4bd64e31193f709c468406be7bc6a02b5e6fadcd875ee5d6f9b29",
+      "file" : "b-dominant-tonic-2276de50e8d4.wav",
+      "generatedAt" : "2026-08-20T23:40:50Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-first-251" : {
+      "contentHash" : "ea88d7cd2140585f0d4aa337e25636e243571f1ade4619b3ebee96d2d6df19f7",
+      "file" : "b-first-251-ea88d7cd2140.wav",
+      "generatedAt" : "2026-08-20T23:39:27Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-inversions" : {
+      "contentHash" : "9cdfcfbcc6167844b51d3093bbbd9ce364438813b7b74bb880947dc5b129fad3",
+      "file" : "b-inversions-9cdfcfbcc616.wav",
+      "generatedAt" : "2026-08-20T23:37:25Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-major-minor" : {
+      "contentHash" : "bc4008369b69a63a1df0e2ddb07cbb7ce42efd0a09edb6d309fde035f069a1f3",
+      "file" : "b-major-minor-bc4008369b69.wav",
+      "generatedAt" : "2026-08-20T23:36:44Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-major-nine" : {
+      "contentHash" : "8be99e4fd8ce697b4282e69f3681509344856dad9aedf32aa4bca9f5abb10597",
+      "file" : "b-major-nine-8be99e4fd8ce.wav",
+      "generatedAt" : "2026-08-20T23:42:12Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-minor-nine" : {
+      "contentHash" : "8f611f002f53f49d8b4fff94c4fcafd2eb8d244f97c0aa51767837c18bcdec8e",
+      "file" : "b-minor-nine-8f611f002f53.wav",
+      "generatedAt" : "2026-08-20T23:42:53Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-minor-shell" : {
+      "contentHash" : "198be241ca955a553c22f64874bea256e3d105afeb29bc2d5e5ebdc3502ef3a4",
+      "file" : "b-minor-shell-198be241ca95.wav",
+      "generatedAt" : "2026-08-20T23:40:09Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-step-skip" : {
+      "contentHash" : "78b6a8e86605e7744e3be79249d987ef48e0d055366930e8b9efcae7414824dc",
+      "file" : "b-step-skip-78b6a8e86605.wav",
+      "generatedAt" : "2026-08-20T23:25:33Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-sus-dominant" : {
+      "contentHash" : "d606fb94fcd4b69dcc67f9b45b290c5cc7b9b4a157d9db868b5d6ee2d85dfe33",
+      "file" : "b-sus-dominant-d606fb94fcd4.wav",
+      "generatedAt" : "2026-08-20T23:41:31Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "b-transpose" : {
+      "contentHash" : "0a80d6e66d974b61a2e1467589b95aa79a6fff0c543402511d9d5f3e4e0bc001",
+      "file" : "b-transpose-0a80d6e66d97.wav",
+      "generatedAt" : "2026-08-20T23:43:34Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-altered" : {
+      "contentHash" : "0de7f9918e7222129175e8cf240d9e898f09d1835b1c12cf2f3e6bcbcd5162f4",
+      "file" : "i-altered-0de7f9918e72.wav",
+      "generatedAt" : "2026-08-20T23:45:42Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-fourths" : {
+      "contentHash" : "bb9d5d53576ca9a3fb5996217092c352bfce6a0901668bf2cf3eeed522d5a5e8",
+      "file" : "i-fourths-bb9d5d53576c.wav",
+      "generatedAt" : "2026-08-20T23:48:59Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-guide-chain" : {
+      "contentHash" : "55e89121eb017d66e6335754ffa089952a44521b3c906a019567818cc3477a7a",
+      "file" : "i-guide-chain-55e89121eb01.wav",
+      "generatedAt" : "2026-08-20T23:44:16Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-major-mode" : {
+      "contentHash" : "d3c6c147b518f233b87ed155a3dc701bfb4cef10db17312dfe00a6590eda51e8",
+      "file" : "i-major-mode-d3c6c147b518.wav",
+      "generatedAt" : "2026-08-20T23:46:21Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-major-pentatonic" : {
+      "contentHash" : "0fa25782b3b8d8db416a517ec5a49dcdde0c476384ffe04b0e65d87ddabf6d21",
+      "file" : "i-major-pentatonic-0fa25782b3b8.wav",
+      "generatedAt" : "2026-08-20T23:50:18Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-melodic-minor" : {
+      "contentHash" : "2e60e25a2555c653087e6dac470dfec34e7889cc44c1a7b3eb046312114b7b1e",
+      "file" : "i-melodic-minor-2e60e25a2555.wav",
+      "generatedAt" : "2026-08-20T23:47:02Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-minor-pentatonic" : {
+      "contentHash" : "979297947b3cadaf45e4a62353e52daed5906dfb0762b8c3293f494de9c7dd8e",
+      "file" : "i-minor-pentatonic-979297947b3c.wav",
+      "generatedAt" : "2026-08-20T23:50:53Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-modal-shift" : {
+      "contentHash" : "d64aa72718359730e7cb06f1e965e4ffb0e94999e768445a9ace3e2f5d04a362",
+      "file" : "i-modal-shift-d64aa7271835.wav",
+      "generatedAt" : "2026-08-20T23:48:18Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-pentatonic-251" : {
+      "contentHash" : "4a9f2b6a83715047ca98f8e1a8aed1fe11d036997b96968500cb168b488b690d",
+      "file" : "i-pentatonic-251-4a9f2b6a8371.wav",
+      "generatedAt" : "2026-08-20T23:51:29Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-symmetric" : {
+      "contentHash" : "6566a80f7c6aafbd09daf094f92784b6d82f72aabcb5f08df3b6de57d92a0b54",
+      "file" : "i-symmetric-6566a80f7c6a.wav",
+      "generatedAt" : "2026-08-20T23:47:41Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-tritone" : {
+      "contentHash" : "a4470311647e5979a3cc3c7f4f4c09359e7fe8be3ff546e272df8faa829b5e88",
+      "file" : "i-tritone-a4470311647e.wav",
+      "generatedAt" : "2026-08-20T23:44:59Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "i-upper-structure" : {
+      "contentHash" : "e1b85f2ad1c2f214030fb696cc95b8800f9822db6468dc42467560a34a16e49c",
+      "file" : "i-upper-structure-e1b85f2ad1c2.wav",
+      "generatedAt" : "2026-08-20T23:49:41Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    }
+  },
   "schemaVersion" : 1
 }

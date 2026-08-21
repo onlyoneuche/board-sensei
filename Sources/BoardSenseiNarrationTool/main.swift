@@ -2,38 +2,48 @@ import Foundation
 import MusicCore
 
 private struct Options {
-    var model = "eleven_v3"
+    var voice = "alba"
+    var voiceLicense = "CC-BY-4.0"
+    var language = "english"
+    var decodeSteps = 5
     var lessonID: String?
     var force = false
     var dryRun = false
     var check = false
+    var voiceWasOverridden = false
+    var licenseWasOverridden = false
 }
 
 private enum ToolError: LocalizedError {
     case usage(String)
-    case missingEnvironment(String)
     case invalidManifest(String)
     case staleAssets([String])
-    case requestFailed(Int, String)
-    case scriptTooLong(String, Int)
+    case processFailed(String, Int32, String)
 
     var errorDescription: String? {
         switch self {
         case let .usage(message): message
-        case let .missingEnvironment(name): "Missing required environment variable: \(name)"
         case let .invalidManifest(message): "Invalid narration manifest: \(message)"
         case let .staleAssets(ids): "Missing or stale narration assets: \(ids.joined(separator: ", "))"
-        case let .requestFailed(status, message): "ElevenLabs request failed (HTTP \(status)): \(message)"
-        case let .scriptTooLong(id, count): "Narration for \(id) is \(count) characters; split or shorten it before generation."
+        case let .processFailed(tool, status, message):
+            "\(tool) failed with exit status \(status): \(message)"
         }
     }
 }
 
 @main
 private struct BoardSenseiNarrationTool {
-    private static let outputFormat = "mp3_44100_128"
+    static func main() {
+        do {
+            try runTool()
+        } catch {
+            let message = "error: \(error.localizedDescription)\n"
+            FileHandle.standardError.write(Data(message.utf8))
+            Foundation.exit(EXIT_FAILURE)
+        }
+    }
 
-    static func main() async throws {
+    private static func runTool() throws {
         let options = try parseOptions()
         let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("Sources/BoardSenseiApp/Resources/Narration", isDirectory: true)
@@ -65,49 +75,38 @@ private struct BoardSenseiNarrationTool {
             return
         }
 
-        let environment = ProcessInfo.processInfo.environment
-        let apiKey = environment["ELEVENLABS_API_KEY"]
-        let voiceID = environment["ELEVENLABS_VOICE_ID"]
         var generatedCount = 0
-
-        for lesson in selectedLessons {
+        for (index, lesson) in selectedLessons.enumerated() {
+            let progress = "[\(index + 1)/\(selectedLessons.count)]"
             if !options.force && isCurrent(lesson, manifest: manifest, outputDirectory: outputDirectory) {
-                print("current   \(lesson.id)")
+                print("\(progress) current   \(lesson.id)")
                 continue
             }
 
-            let filename = "\(lesson.id)-\(lesson.narrationContentHash.prefix(12)).mp3"
+            let filename = "\(lesson.id)-\(lesson.narrationContentHash.prefix(12)).wav"
             if options.dryRun {
-                print("generate  \(lesson.id) -> \(filename) (\(lesson.narrationScript.count) characters)")
+                print("\(progress) generate  \(lesson.id) -> \(filename) (\(lesson.narrationScript.count) characters)")
                 continue
             }
 
-            guard let apiKey, !apiKey.isEmpty else {
-                throw ToolError.missingEnvironment("ELEVENLABS_API_KEY")
-            }
-            guard let voiceID, !voiceID.isEmpty else {
-                throw ToolError.missingEnvironment("ELEVENLABS_VOICE_ID")
-            }
-            guard lesson.narrationScript.count <= 3_000 else {
-                throw ToolError.scriptTooLong(lesson.id, lesson.narrationScript.count)
-            }
-
-            print("generate  \(lesson.id)")
-            let audio = try await generateAudio(
+            let destination = outputDirectory.appendingPathComponent(filename)
+            print("\(progress) generate  \(lesson.id) — starting Pocket TTS (the first run may download model files)")
+            try generateAudio(
                 text: lesson.narrationScript,
-                voiceID: voiceID,
-                model: options.model,
-                apiKey: apiKey
+                destination: destination,
+                options: options
             )
-            try audio.write(to: outputDirectory.appendingPathComponent(filename), options: .atomic)
             manifest.lessons[lesson.id] = NarrationAsset(
                 contentHash: lesson.narrationContentHash,
                 file: filename,
-                voiceID: voiceID,
-                model: options.model,
+                voiceID: options.voice,
+                voiceLicense: options.voiceLicense,
+                model: "pocket-tts:\(options.language):lsd=\(options.decodeSteps)",
                 generatedAt: ISO8601DateFormatter().string(from: Date())
             )
+            try writeManifest(manifest, to: manifestURL)
             generatedCount += 1
+            print("\(progress) saved     \(destination.path)")
         }
 
         guard !options.dryRun else { return }
@@ -125,10 +124,28 @@ private struct BoardSenseiNarrationTool {
 
         while index < arguments.count {
             switch arguments[index] {
-            case "--model":
+            case "--voice":
                 index += 1
-                guard index < arguments.count else { throw ToolError.usage("--model requires a value") }
-                options.model = arguments[index]
+                guard index < arguments.count else { throw ToolError.usage("--voice requires a value") }
+                options.voice = arguments[index]
+                options.voiceWasOverridden = true
+            case "--voice-license":
+                index += 1
+                guard index < arguments.count else {
+                    throw ToolError.usage("--voice-license requires a value")
+                }
+                options.voiceLicense = arguments[index]
+                options.licenseWasOverridden = true
+            case "--language":
+                index += 1
+                guard index < arguments.count else { throw ToolError.usage("--language requires a value") }
+                options.language = arguments[index]
+            case "--decode-steps":
+                index += 1
+                guard index < arguments.count, let steps = Int(arguments[index]), (1...10).contains(steps) else {
+                    throw ToolError.usage("--decode-steps requires an integer from 1 through 10")
+                }
+                options.decodeSteps = steps
             case "--lesson":
                 index += 1
                 guard index < arguments.count else { throw ToolError.usage("--lesson requires an ID") }
@@ -144,6 +161,12 @@ private struct BoardSenseiNarrationTool {
             }
             index += 1
         }
+
+        if options.voiceWasOverridden && !options.licenseWasOverridden {
+            throw ToolError.usage(
+                "A custom --voice also requires --voice-license so redistribution rights are recorded."
+            )
+        }
         return options
     }
 
@@ -151,13 +174,17 @@ private struct BoardSenseiNarrationTool {
         print("""
         Usage: swift run BoardSenseiNarrationTool [options]
 
-          --dry-run          Show which lessons need generation without calling the API
-          --check            Fail when a selected narration asset is missing or stale
-          --lesson ID        Process one lesson instead of the complete catalog
-          --model MODEL      ElevenLabs model ID (default: eleven_v3)
-          --force            Regenerate even when the content hash is current
+          --dry-run              Show which lessons need generation without running Pocket TTS
+          --check                Fail when a selected narration asset is missing or stale
+          --lesson ID            Process one lesson instead of the complete catalog
+          --voice VOICE          Pocket TTS voice name, file, or URL (default: alba)
+          --voice-license SPDX   Required with --voice; stored in the manifest
+          --language LANGUAGE    Pocket TTS language configuration (default: english)
+          --decode-steps 1...10  Quality/speed tradeoff (default: 5)
+          --force                Regenerate even when the content hash is current
 
-        Generation requires ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID.
+        Generation is local and free. It requires uvx. The first run
+        downloads Pocket TTS model data. The default Alba voice is CC-BY-4.0 licensed.
         """)
     }
 
@@ -184,7 +211,10 @@ private struct BoardSenseiNarrationTool {
         outputDirectory: URL
     ) -> Bool {
         guard let asset = manifest.lessons[lesson.id],
-              asset.contentHash == lesson.narrationContentHash else {
+              asset.contentHash == lesson.narrationContentHash,
+              !asset.voiceID.isEmpty,
+              asset.voiceLicense?.isEmpty == false,
+              !asset.model.isEmpty else {
             return false
         }
         return FileManager.default.fileExists(
@@ -192,32 +222,53 @@ private struct BoardSenseiNarrationTool {
         )
     }
 
-    private static func generateAudio(
-        text: String,
-        voiceID: String,
-        model: String,
-        apiKey: String
-    ) async throws -> Data {
-        var endpoint = URL(string: "https://api.elevenlabs.io/v1/text-to-speech")!
-            .appendingPathComponent(voiceID)
-        endpoint.append(queryItems: [URLQueryItem(name: "output_format", value: outputFormat)])
+    private static func generateAudio(text: String, destination: URL, options: Options) throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("board-sensei-narration-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "text": text,
-            "model_id": model,
-        ])
+        let wav = temporaryDirectory.appendingPathComponent("narration.wav")
+        print("staging   \(wav.path) (temporary; removed after the final asset is saved)")
+        try run(
+            executable: "/usr/bin/env",
+            arguments: [
+                "uvx", "pocket-tts", "generate",
+                "--text", text,
+                "--voice", options.voice,
+                "--output-path", wav.path,
+                "--language", options.language,
+                "--lsd-decode-steps", String(options.decodeSteps),
+            ],
+            name: "Pocket TTS"
+        )
+        let data = try Data(contentsOf: wav)
+        try data.write(to: destination, options: .atomic)
+    }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else {
-            let message = String(data: data, encoding: .utf8) ?? "No response body"
-            throw ToolError.requestFailed(status, message)
+    private static func run(executable: String, arguments: [String], name: String) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        try process.run()
+        let startedAt = Date()
+        var nextHeartbeat = 10
+        while process.isRunning {
+            Thread.sleep(forTimeInterval: 1)
+            let elapsed = Int(Date().timeIntervalSince(startedAt))
+            if elapsed >= nextHeartbeat {
+                print("working   \(name) is still running — \(elapsed)s elapsed")
+                nextHeartbeat += 10
+            }
         }
-        return data
+        process.waitUntilExit()
+
+        guard process.terminationStatus == EXIT_SUCCESS else {
+            throw ToolError.processFailed(
+                name,
+                process.terminationStatus,
+                "See the command output above for details."
+            )
+        }
     }
 }
