@@ -20,6 +20,11 @@ public struct PracticeTimeSignature: Codable, Hashable, Identifiable, Sendable {
         return Int((quarterNoteMilliseconds * 4.0 / Double(denominator)).rounded())
     }
 
+    public func barAlignedBeatCount(forPromptCount promptCount: Int) -> Int {
+        guard promptCount > 0 else { return 0 }
+        return ((promptCount + numerator - 1) / numerator) * numerator
+    }
+
     public static let common: [PracticeTimeSignature] = [
         .init(numerator: 2, denominator: 4),
         .init(numerator: 3, denominator: 4),

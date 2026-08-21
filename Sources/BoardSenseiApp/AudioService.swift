@@ -8,6 +8,7 @@ final class AudioService: ObservableObject {
     @Published private(set) var status = "Starting audio engine…"
     @Published var monitoringEnabled = true
     @Published private(set) var outputLevel: Float = 0
+    @Published private(set) var selectedInstrument: PracticeInstrument = .acousticGrand
     @Published var volume: Float = 0.8 {
         didSet { engine.mainMixerNode.outputVolume = min(max(volume, 0), 1) }
     }
@@ -26,8 +27,13 @@ final class AudioService: ObservableObject {
     private var previewNotes: Set<UInt8> = []
     private var meterTask: Task<Void, Never>?
     private var hasInstalledMeter = false
+    private let selectedInstrumentKey = "practiceInstrument"
 
     init() {
+        if let stored = UserDefaults.standard.string(forKey: selectedInstrumentKey),
+           let instrument = PracticeInstrument(rawValue: stored) {
+            selectedInstrument = instrument
+        }
         accentedClick = Self.makeClickBuffer(frequency: 1_900, amplitude: 0.9)
         regularClick = Self.makeClickBuffer(frequency: 1_280, amplitude: 0.64)
         engine.attach(sampler)
@@ -41,12 +47,12 @@ final class AudioService: ObservableObject {
     func start() {
         guard !engine.isRunning else { return }
         do {
-            try loadPianoIfAvailable()
+            try loadInstrument(selectedInstrument)
             installMeterIfNeeded()
             engine.prepare()
             try engine.start()
             startMeterPolling()
-            status = "Audio ready"
+            status = "Audio ready · \(selectedInstrument.name)"
         } catch {
             status = "Audio unavailable: \(error.localizedDescription)"
         }
@@ -74,6 +80,29 @@ final class AudioService: ObservableObject {
         }
         activeNotes.removeAll()
         previewNotes.removeAll()
+    }
+
+    func selectInstrument(_ instrument: PracticeInstrument) {
+        guard instrument != selectedInstrument else { return }
+        let previous = selectedInstrument
+        panic()
+
+        if !engine.isRunning {
+            selectedInstrument = instrument
+            persistSelectedInstrument()
+            start()
+            return
+        }
+
+        do {
+            try loadInstrument(instrument)
+            selectedInstrument = instrument
+            persistSelectedInstrument()
+            status = "Audio ready · \(instrument.name)"
+        } catch {
+            try? loadInstrument(previous)
+            status = "Could not load \(instrument.name): \(error.localizedDescription)"
+        }
     }
 
     func beginPreview(_ notes: [UInt8], velocity: UInt8 = 88) {
@@ -106,23 +135,37 @@ final class AudioService: ObservableObject {
         if !metronomePlayer.isPlaying { metronomePlayer.play() }
     }
 
-    private func loadPianoIfAvailable() throws {
+    private func loadInstrument(_ instrument: PracticeInstrument) throws {
         let candidatePaths = [
             Bundle.main.url(forResource: "Piano", withExtension: "sf2"),
             URL(fileURLWithPath: "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls"),
         ].compactMap { $0 }
 
-        guard let bank = candidatePaths.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
-            status = "Audio ready; add Piano.sf2 for a piano timbre"
-            return
+        var lastError: Error?
+        for bank in candidatePaths where FileManager.default.fileExists(atPath: bank.path) {
+            do {
+                try sampler.loadSoundBankInstrument(
+                    at: bank,
+                    program: instrument.program,
+                    bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
+                    bankLSB: UInt8(kAUSampler_DefaultBankLSB)
+                )
+                return
+            } catch {
+                lastError = error
+            }
         }
 
-        try sampler.loadSoundBankInstrument(
-            at: bank,
-            program: 0,
-            bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
-            bankLSB: UInt8(kAUSampler_DefaultBankLSB)
+        if let lastError { throw lastError }
+        throw NSError(
+            domain: "BoardSensei.AudioService",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "No compatible SoundFont or General MIDI bank was found"]
         )
+    }
+
+    private func persistSelectedInstrument() {
+        UserDefaults.standard.set(selectedInstrument.rawValue, forKey: selectedInstrumentKey)
     }
 
     private func installMeterIfNeeded() {

@@ -84,7 +84,7 @@ struct PracticeView: View {
                 .font(.title2)
                 .foregroundStyle(feedbackColor)
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.isPreviewPlaying ? "Exercise preview" : model.feedback.title).font(.headline)
+                Text(previewTitle).font(.headline)
                 Text(feedbackDetail).font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
@@ -121,9 +121,17 @@ struct PracticeView: View {
         }
     }
 
+    private var previewTitle: String {
+        guard model.isPreviewPlaying else { return model.feedback.title }
+        return model.isExerciseLoopEnabled ? "Practice loop" : "Exercise preview"
+    }
+
     private var feedbackDetail: String {
         if model.isPreviewPlaying {
             let position = (model.previewPromptIndex ?? 0) + 1
+            if model.previewPromptIndex == nil {
+                return "Listening at \(model.previewTempoBPM) BPM · Completing the current measure."
+            }
             return "Listening at \(model.previewTempoBPM) BPM · Prompt \(position) of \(model.activeLesson.promptCount): \(noteList(model.previewPitches))."
         }
         return switch model.feedback {

@@ -4,6 +4,10 @@ import SwiftUI
 struct PianoKeyboardView: View {
     @EnvironmentObject private var model: AppModel
     @FocusState private var hasKeyboardFocus: Bool
+    @AppStorage(KeyboardIndicatorPreferences.expectedKey)
+    private var expectedIndicatorHex = KeyboardIndicatorPreferences.defaultExpectedHex
+    @AppStorage(KeyboardIndicatorPreferences.activeKey)
+    private var activeIndicatorHex = KeyboardIndicatorPreferences.defaultActiveHex
 
     private let minimumKeyboardWidth: CGFloat = 1_080
     private let keyboardHeight: CGFloat = 190
@@ -111,6 +115,14 @@ struct PianoKeyboardView: View {
             key: key,
             isActive: model.activeNotes.contains(key.note) || model.previewPitches.contains(key.note),
             isExpected: model.displayedPitches.contains(key.note),
+            expectedIndicatorColor: KeyboardIndicatorPreferences.color(
+                from: expectedIndicatorHex,
+                fallback: KeyboardIndicatorPreferences.defaultExpectedHex
+            ),
+            activeIndicatorColor: KeyboardIndicatorPreferences.color(
+                from: activeIndicatorHex,
+                fallback: KeyboardIndicatorPreferences.defaultActiveHex
+            ),
             onPress: { press(key) },
             onRelease: { release(key) },
             onAccessibleActivate: { model.simulate(note: key.note) }
@@ -143,6 +155,8 @@ private struct PianoKeyView: View {
     let key: PianoKey
     let isActive: Bool
     let isExpected: Bool
+    let expectedIndicatorColor: Color
+    let activeIndicatorColor: Color
     let onPress: () -> Void
     let onRelease: () -> Void
     let onAccessibleActivate: () -> Void
@@ -151,17 +165,17 @@ private struct PianoKeyView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             keyShape
-                .fill(key.isBlack ? Color.black : Color.white)
+                .fill(keyFillColor)
                 .shadow(color: .black.opacity(key.isBlack ? 0.34 : 0.16), radius: 2, y: 2)
 
             keyShape
-                .stroke(indicatorColor, lineWidth: isActive || isExpected ? 3 : 1)
+                .stroke(keyBorderColor, lineWidth: isActive || isExpected ? 2 : 1)
 
             VStack(spacing: 4) {
                 if isActive || isExpected {
                     Image(systemName: isActive ? "circle.inset.filled" : "scope")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(PracticeTheme.accent)
+                        .foregroundStyle(labelColor)
                 }
                 if shouldShowNoteName {
                     Text(noteName(key.note)).font(.system(size: 9, weight: .bold))
@@ -209,13 +223,22 @@ private struct PianoKeyView: View {
         RoundedRectangle(cornerRadius: key.isBlack ? 5 : 4)
     }
 
-    private var indicatorColor: Color {
-        if isActive { return .blue }
-        if isExpected { return PracticeTheme.accent }
+    private var keyFillColor: Color {
+        if isActive { return activeIndicatorColor }
+        if isExpected { return expectedIndicatorColor }
+        return key.isBlack ? .black : .white
+    }
+
+    private var keyBorderColor: Color {
+        if isActive || isExpected { return labelColor.opacity(0.72) }
         return key.isBlack ? Color.white.opacity(0.16) : Color.black.opacity(0.35)
     }
 
-    private var labelColor: Color { key.isBlack ? .white : .black }
+    private var labelColor: Color {
+        if isActive { return KeyboardIndicatorPreferences.contrastingText(for: activeIndicatorColor) }
+        if isExpected { return KeyboardIndicatorPreferences.contrastingText(for: expectedIndicatorColor) }
+        return key.isBlack ? .white : .black
+    }
 
     private var shouldShowNoteName: Bool {
         key.shortcut != nil || (!key.isBlack && Int(key.note) % 12 == 0)

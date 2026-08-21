@@ -54,33 +54,3 @@ struct FoundationView: View {
         .navigationTitle("Foundation")
     }
 }
-
-struct SettingsView: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        Form {
-            Section("Audio") {
-                AudioSettingsControls(audio: model.audio)
-            }
-            Section("Practice engine") {
-                LabeledContent("Active core", value: model.isUsingRust ? "Rust" : "Native fallback")
-                Text("Build the Rust library before launching to activate the portable engine automatically.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-        .padding()
-    }
-}
-
-private struct AudioSettingsControls: View {
-    @ObservedObject var audio: AudioService
-
-    var body: some View {
-        Toggle("Monitor MIDI through app", isOn: $audio.monitoringEnabled)
-        LabeledContent("Engine", value: audio.status)
-        Button("Stop all notes", systemImage: "exclamationmark.triangle") { audio.panic() }
-    }
-}

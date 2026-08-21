@@ -33,6 +33,7 @@ struct RootView: View {
             case .courses: CoursesView()
             case .midiLab: MIDIDiagnosticsView()
             case .architecture: FoundationView()
+            case .settings: SettingsView()
             }
         }
     }
@@ -45,11 +46,11 @@ private struct PracticeSessionRootView: View {
         VStack(spacing: 0) {
             practiceTopBar
             Rectangle().fill(PracticeTheme.strongSeparator).frame(height: 1)
-            NavigationSplitView {
+            HSplitView {
                 LessonGuideSidebar()
-                    .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 370)
-            } detail: {
+                    .frame(minWidth: 280, idealWidth: 380, maxWidth: 680)
                 PracticeView()
+                    .frame(minWidth: 560)
             }
         }
         .tint(PracticeTheme.accent)
@@ -67,6 +68,7 @@ private struct PracticeSessionRootView: View {
             navigationButton("Courses", symbol: "graduationcap.fill", destination: .courses)
             navigationButton("MIDI Lab", symbol: "pianokeys", destination: .midiLab)
             navigationButton("Foundation", symbol: "square.3.layers.3d", destination: .architecture)
+            navigationButton("Settings", symbol: "gearshape.fill", destination: .settings)
         }
         .padding(.horizontal, 16)
         .frame(height: 48)
@@ -102,7 +104,7 @@ private struct MetronomeTransportControls: View {
                     .background(model.isMetronomeEnabled ? PracticeTheme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 5))
             }
             .buttonStyle(.plain)
-            .help(model.isMetronomeEnabled ? "Turn metronome off" : "Turn metronome on")
+            .help(model.isMetronomeEnabled ? "Disarm metronome" : "Arm metronome for exercise playback")
 
             Circle()
                 .fill(beatIndicatorColor)
@@ -170,7 +172,7 @@ private struct MetronomeTransportControls: View {
         .accessibilityElement(children: .contain)
         .quickHelp(
             "Metronome and tempo",
-            "Toggle the click, change BPM or meter, and set click volume. Exercise preview starts with this transport on beat one."
+            "Arm clicks for exercise playback, change BPM or meter, and set click volume. The metronome stays silent when playback is stopped."
         )
     }
 
@@ -184,9 +186,10 @@ private struct MetronomeTransportControls: View {
 
 private struct LessonGuideSidebar: View {
     @EnvironmentObject private var model: AppModel
+    @StateObject private var narration = LessonNarrationService()
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("CURRENT LESSON")
@@ -206,25 +209,57 @@ private struct LessonGuideSidebar: View {
                     chapterLessonMenu(navigation)
                 }
 
-                guideSection("Key concept", symbol: "lightbulb.fill") {
-                    Text(model.activeLesson.theory)
+                narrationControls
+
+                guideSection("What you are learning", symbol: "book.closed.fill") {
+                    Text(model.activeLesson.studyGuide)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .quickHelp("Key concept", "The short idea to keep in mind while playing. The Topic page contains the full explanation, preparation guide, and narration.")
+
+                guideSection("Why it matters", symbol: "lightbulb.fill") {
+                    Text(model.activeLesson.topicWhyItMatters)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 guideSection("Exercise", symbol: model.activeLesson.isChordExercise ? "rectangle.stack.fill" : "music.note") {
                     Text(model.activeLesson.practiceInstruction)
 
+                    Label(model.activeLesson.topicSuccessCriterion, systemImage: "checkmark.seal")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
                     VStack(spacing: 10) {
-                        Button {
-                            model.toggleExercisePreview()
-                        } label: {
-                            Label(
-                                model.isPreviewPlaying ? "Stop exercise" : "Hear full exercise",
-                                systemImage: model.isPreviewPlaying ? "stop.fill" : "play.fill"
-                            )
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 8) {
+                            Button {
+                                narration.stop()
+                                model.toggleExercisePreview()
+                            } label: {
+                                Label(
+                                    model.isPreviewPlaying ? "Stop exercise" : "Hear full exercise",
+                                    systemImage: model.isPreviewPlaying ? "stop.fill" : "play.fill"
+                                )
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Button {
+                                model.toggleExerciseLoopEnabled()
+                            } label: {
+                                Image(systemName: "repeat")
+                                    .foregroundStyle(model.isExerciseLoopEnabled ? Color.white : Color.secondary)
+                                    .frame(width: 30, height: 28)
+                                    .background(
+                                        model.isExerciseLoopEnabled ? PracticeTheme.accent : PracticeTheme.raised,
+                                        in: RoundedRectangle(cornerRadius: 5)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .help(model.isExerciseLoopEnabled ? "Disable exercise loop" : "Enable exercise loop")
+                            .accessibilityLabel("Exercise loop")
+                            .accessibilityValue(model.isExerciseLoopEnabled ? "Enabled" : "Disabled")
                         }
-                        .buttonStyle(.borderedProminent)
 
                         HStack {
                             Image(systemName: "metronome")
@@ -253,9 +288,31 @@ private struct LessonGuideSidebar: View {
                             .stroke(PracticeTheme.separator, lineWidth: 1)
                     }
                     .quickHelp(
-                        "Exercise preview",
-                        "Hear the full exercise without changing your score. The staff and piano follow every preview prompt."
+                        "Exercise playback",
+                        "Play one complete demonstration. Enable the repeat button to turn the same playback into a bar-aligned practice loop."
                     )
+                }
+
+                guideSection("How to practise", symbol: "list.number") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(model.activeLesson.topicPracticePlan.enumerated()), id: \.offset) { index, step in
+                            HStack(alignment: .top, spacing: 9) {
+                                Text("\(index + 1)")
+                                    .font(.caption2.bold().monospacedDigit())
+                                    .foregroundStyle(.white)
+                                    .frame(width: 20, height: 20)
+                                    .background(PracticeTheme.accent, in: Circle())
+                                Text(step)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+
+                guideSection("What to listen for", symbol: "ear.fill") {
+                    Text(model.activeLesson.topicListeningFocus)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 guideSection("Lesson route", symbol: "list.number") {
@@ -277,11 +334,66 @@ private struct LessonGuideSidebar: View {
                     .padding(.vertical, 10)
             }
         }
+        .scrollIndicators(.visible)
         .background(PracticeTheme.sidebar)
-        .navigationTitle("Class guide")
         .safeAreaInset(edge: .bottom) {
             sidebarFooter
         }
+        .onChange(of: model.activeLesson.id) { _, _ in narration.stop() }
+        .onDisappear { narration.stop() }
+    }
+
+    private var narrationControls: some View {
+        guideSection("Lesson narration", symbol: narration.state == .speaking ? "waveform.circle.fill" : "waveform.circle") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("\(narration.sourceDescription(lessonID: model.activeLesson.id, contentHash: model.activeLesson.narrationContentHash)) · about \(narrationMinutes) min")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button {
+                        if narration.state == .idle, model.isPreviewPlaying {
+                            model.toggleExercisePreview()
+                        }
+                        narration.toggle(
+                            lessonID: model.activeLesson.id,
+                            contentHash: model.activeLesson.narrationContentHash,
+                            text: model.activeLesson.narrationScript
+                        )
+                    } label: {
+                        Label(narrationButtonTitle, systemImage: narrationButtonSymbol)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    if narration.state != .idle {
+                        Button("Stop", systemImage: "stop.fill") { narration.stop() }
+                            .buttonStyle(.bordered)
+                    }
+                }
+            }
+        }
+        .quickHelp("Lesson narration", "Listen to the complete lesson explanation. Narration stops when you preview the exercise, change lessons, or leave class mode.")
+    }
+
+    private var narrationButtonTitle: String {
+        switch narration.state {
+        case .idle: "Listen"
+        case .speaking: "Pause"
+        case .paused: "Resume"
+        }
+    }
+
+    private var narrationButtonSymbol: String {
+        switch narration.state {
+        case .idle: "play.fill"
+        case .speaking: "pause.fill"
+        case .paused: "play.fill"
+        }
+    }
+
+    private var narrationMinutes: Int {
+        max(1, Int(ceil(Double(model.activeLesson.narrationScript.split(whereSeparator: \.isWhitespace).count) / 155)))
     }
 
     private func guideSection<Content: View>(

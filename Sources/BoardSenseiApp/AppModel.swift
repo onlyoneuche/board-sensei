@@ -30,6 +30,7 @@ final class AppModel: ObservableObject {
         case courses = "Courses"
         case midiLab = "MIDI Lab"
         case architecture = "Foundation"
+        case settings = "Settings"
 
         var id: Self { self }
         var symbol: String {
@@ -37,6 +38,7 @@ final class AppModel: ObservableObject {
             case .courses: "graduationcap.fill"
             case .midiLab: "pianokeys"
             case .architecture: "square.3.layers.3d"
+            case .settings: "gearshape.fill"
             }
         }
     }
@@ -57,6 +59,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var completedLessonIDs: Set<String> = []
     @Published private(set) var isPracticeMode = false
     @Published private(set) var isPreviewPlaying = false
+    @Published private(set) var isExerciseLoopEnabled = false
     @Published private(set) var previewPitches: [UInt8] = []
     @Published private(set) var previewPromptIndex: Int?
     @Published private(set) var previewTempoBPM = 90
@@ -72,7 +75,6 @@ final class AppModel: ObservableObject {
     private var eventTask: Task<Void, Never>?
     private var deviceTask: Task<Void, Never>?
     private var previewTask: Task<Void, Never>?
-    private var metronomeTask: Task<Void, Never>?
 
     var isUsingRust: Bool { validator.isUsingRust }
     private let completedLessonsKey = "completedJazzLessonIDs"
@@ -204,20 +206,17 @@ final class AppModel: ObservableObject {
 
     func startLesson(_ lesson: PracticeLesson) {
         clearQuickHelp()
-        stopMetronomeClock()
-        stopExercisePreview(restartMetronome: false)
+        stopExercisePreview()
         audio.panic()
         activeLesson = lesson
         resetLesson()
         isPracticeMode = true
-        startMetronomeClockIfNeeded()
     }
 
     func leavePractice(for destination: Destination = .courses) {
         clearQuickHelp()
         isPracticeMode = false
-        stopExercisePreview(restartMetronome: false)
-        stopMetronomeClock()
+        stopExercisePreview()
         audio.panic()
         self.destination = destination
     }
@@ -234,16 +233,12 @@ final class AppModel: ObservableObject {
     func setPreviewTempo(_ beatsPerMinute: Int) {
         previewTempoBPM = min(max(beatsPerMinute, 50), 180)
         UserDefaults.standard.set(previewTempoBPM, forKey: previewTempoKey)
-        if isMetronomeEnabled && !isPreviewPlaying {
-            restartMetronomeClock()
-        }
     }
 
     func setMetronomeEnabled(_ enabled: Bool) {
         isMetronomeEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: metronomeEnabledKey)
-        if enabled { startMetronomeClockIfNeeded() }
-        else { stopMetronomeClock() }
+        if !enabled { metronomeBeatIndex = nil }
     }
 
     func setMetronomeVolume(_ volume: Float) {
@@ -256,9 +251,6 @@ final class AppModel: ObservableObject {
     func setMetronomeSignature(_ signature: PracticeTimeSignature) {
         metronomeSignature = signature
         UserDefaults.standard.set(signature.id, forKey: metronomeSignatureKey)
-        if isMetronomeEnabled && !isPreviewPlaying {
-            restartMetronomeClock()
-        }
     }
 
     func showQuickHelp(title: String, detail: String) {
@@ -274,23 +266,25 @@ final class AppModel: ObservableObject {
         else { startExercisePreview() }
     }
 
+    func toggleExerciseLoopEnabled() {
+        isExerciseLoopEnabled.toggle()
+    }
+
     func startExercisePreview() {
-        stopExercisePreview(restartMetronome: false)
-        stopMetronomeClock()
+        stopExercisePreview()
         isPreviewPlaying = true
         previewTask = Task { [weak self] in
             await self?.runExercisePreview()
         }
     }
 
-    func stopExercisePreview(restartMetronome: Bool = true) {
+    func stopExercisePreview() {
         previewTask?.cancel()
         previewTask = nil
         audio.stopPreview()
         previewPitches = []
         previewPromptIndex = nil
         isPreviewPlaying = false
-        if restartMetronome { startMetronomeClockIfNeeded() }
     }
 
     private func handle(_ event: NormalizedMIDIEvent) {
@@ -365,71 +359,81 @@ final class AppModel: ObservableObject {
     }
 
     private func runExercisePreview() async {
-        for (index, prompt) in activeLesson.prompts.enumerated() {
-            guard !Task.isCancelled else { return }
-            previewPromptIndex = index
-            previewPitches = prompt.pitches
-            metronomeBeatIndex = index % metronomeSignature.numerator
-            if isMetronomeEnabled {
-                audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
-            }
-            audio.beginPreview(prompt.pitches)
+        repeat {
+            let prompts = activeLesson.prompts
+            for (beat, prompt) in prompts.enumerated() {
+                guard !Task.isCancelled else { return }
+                let beatMilliseconds = currentBeatMilliseconds
+                metronomeBeatIndex = beat % metronomeSignature.numerator
+                if isMetronomeEnabled {
+                    audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
+                }
 
-            let beatMilliseconds = metronomeSignature.beatDurationMilliseconds(at: previewTempoBPM)
-            do {
-                try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.76)))
-            } catch {
+                previewPromptIndex = beat
+                previewPitches = prompt.pitches
+                audio.beginPreview(prompt.pitches)
+                guard await sleepForPreviewNote(beatMilliseconds: beatMilliseconds) else {
+                    audio.endPreview(prompt.pitches)
+                    return
+                }
                 audio.endPreview(prompt.pitches)
-                return
+                guard await sleepForPreviewGap(beatMilliseconds: beatMilliseconds) else { return }
             }
-            audio.endPreview(prompt.pitches)
 
-            do {
-                try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.24)))
-            } catch {
-                return
+            if isExerciseLoopEnabled {
+                let alignedBeatCount = metronomeSignature.barAlignedBeatCount(
+                    forPromptCount: prompts.count
+                )
+                for beat in prompts.count..<alignedBeatCount {
+                    guard !Task.isCancelled else { return }
+                    let beatMilliseconds = currentBeatMilliseconds
+                    metronomeBeatIndex = beat % metronomeSignature.numerator
+                    if isMetronomeEnabled {
+                        audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
+                    }
+                    previewPromptIndex = nil
+                    previewPitches = []
+                    guard await sleepForBeat(beatMilliseconds: beatMilliseconds) else { return }
+                }
             }
-        }
+        } while isExerciseLoopEnabled && !Task.isCancelled
 
         previewTask = nil
         previewPitches = []
         previewPromptIndex = nil
         isPreviewPlaying = false
         metronomeBeatIndex = nil
-        startMetronomeClockIfNeeded()
     }
 
-    private func startMetronomeClockIfNeeded() {
-        guard isMetronomeEnabled, isPracticeMode, !isPreviewPlaying, metronomeTask == nil else { return }
-        metronomeTask = Task { [weak self] in
-            await self?.runMetronomeClock()
+    private var currentBeatMilliseconds: Int {
+        metronomeSignature.beatDurationMilliseconds(at: previewTempoBPM)
+    }
+
+    private func sleepForPreviewNote(beatMilliseconds: Int) async -> Bool {
+        do {
+            try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.76)))
+            return true
+        } catch {
+            return false
         }
     }
 
-    private func restartMetronomeClock() {
-        stopMetronomeClock()
-        startMetronomeClockIfNeeded()
-    }
-
-    private func stopMetronomeClock() {
-        metronomeTask?.cancel()
-        metronomeTask = nil
-        metronomeBeatIndex = nil
-    }
-
-    private func runMetronomeClock() async {
-        var beat = 0
-        while !Task.isCancelled {
-            metronomeBeatIndex = beat % metronomeSignature.numerator
-            audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
-            beat += 1
-            do {
-                try await Task.sleep(for: .milliseconds(
-                    metronomeSignature.beatDurationMilliseconds(at: previewTempoBPM)
-                ))
-            } catch {
-                return
-            }
+    private func sleepForPreviewGap(beatMilliseconds: Int) async -> Bool {
+        do {
+            try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.24)))
+            return true
+        } catch {
+            return false
         }
     }
+
+    private func sleepForBeat(beatMilliseconds: Int) async -> Bool {
+        do {
+            try await Task.sleep(for: .milliseconds(beatMilliseconds))
+            return true
+        } catch {
+            return false
+        }
+    }
+
 }

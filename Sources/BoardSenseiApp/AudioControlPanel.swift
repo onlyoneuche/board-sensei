@@ -10,9 +10,7 @@ struct AudioControlPanel: View {
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
                 VerticalLevelMeter(level: audio.outputLevel)
-                Image(systemName: "waveform")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                instrumentMenu
             }
 
             VStack(spacing: 6) {
@@ -29,6 +27,40 @@ struct AudioControlPanel: View {
         .padding(.vertical, 9)
         .background(PracticeTheme.raised, in: RoundedRectangle(cornerRadius: 6))
         .overlay { RoundedRectangle(cornerRadius: 6).stroke(PracticeTheme.separator, lineWidth: 1) }
+    }
+
+    private var instrumentMenu: some View {
+        Menu {
+            ForEach(PracticeInstrumentCategory.allCases) { category in
+                Section(category.rawValue) {
+                    ForEach(PracticeInstrument.allCases.filter { $0.category == category }) { instrument in
+                        Button {
+                            audio.selectInstrument(instrument)
+                        } label: {
+                            if instrument == audio.selectedInstrument {
+                                Label(instrument.name, systemImage: "checkmark")
+                            } else {
+                                Text(instrument.name)
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: audio.selectedInstrument.symbol)
+                .font(.caption2)
+                .foregroundStyle(PracticeTheme.accent)
+                .frame(width: 24, height: 18)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .help("Practice sound: \(audio.selectedInstrument.name)")
+        .accessibilityLabel("Practice sound")
+        .accessibilityValue(audio.selectedInstrument.name)
+        .quickHelp(
+            "Practice sound",
+            "Choose a grand piano, electric piano, synth lead, or synth pad for both live playing and exercise playback."
+        )
     }
 }
 

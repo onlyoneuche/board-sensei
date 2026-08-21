@@ -1,24 +1,24 @@
-# ADR 001: Content-addressed Topic narration
+# ADR 001: Content-addressed lesson narration
 
 - Status: Accepted
 - Date: 2026-08-19
 
 ## Context
 
-Topic pages contain fixed, authored educational material. The macOS system speech voice is useful as an accessibility fallback but does not meet the desired teaching quality. Calling a cloud TTS service from the application would add latency, recurring runtime cost, network dependency, privacy concerns, and an API-key distribution problem. Bundling a complete local neural TTS runtime would substantially increase application size and native integration complexity.
+The unified lesson/practice workspace contains fixed, authored educational material in its resizable guide. The macOS system speech voice is useful as an accessibility fallback but does not meet the desired teaching quality. Calling a cloud TTS service from the application would add latency, recurring runtime cost, network dependency, privacy concerns, and an API-key distribution problem. Bundling a complete local neural TTS runtime would substantially increase application size and native integration complexity.
 
 Lesson text will change over time. A recording that no longer matches its visible lesson is a correctness defect, not merely a stale cache entry. Musical terms also need a speech-specific representation: for example, visible “II–V–I” should be narrated as “two five one.”
 
 ## Decision
 
-1. `PracticeLesson.narrationScript` is the canonical speech-friendly source. Topic UI sections and narration derive from the same platform-neutral lesson data.
+1. `PracticeLesson.narrationScript` is the canonical speech-friendly source. Unified lesson-guide sections and narration derive from the same platform-neutral lesson data.
 2. `PracticeLesson.narrationContentHash` is the lowercase SHA-256 digest of the exact UTF-8 narration script.
 3. Studio narration is generated outside the app with the free, local Kyutai Pocket TTS model and its native 24 kHz mono PCM/WAV output is committed as an application resource. Pocket TTS is a content-production dependency, not an application runtime dependency.
 4. `Resources/Narration/manifest.json` maps a stable lesson ID to its content hash, content-addressed filename, voice ID, voice license, model configuration, and generation date.
 5. The app plays a bundled recording only when the manifest schema is supported, the lesson ID exists, the hash matches, and the referenced file exists. Otherwise it labels and uses `AVSpeechSynthesizer` as the fallback.
 6. `BoardSenseiNarrationTool` compares hashes and generates only missing or changed lessons. It exposes lesson counts, Pocket TTS output, and an elapsed-time heartbeat because Pocket TTS does not report a reliable per-lesson percentage. It stages each recording in macOS's per-user temporary directory, atomically saves the completed asset, and checkpoints the manifest after each lesson so a long catalog run can resume safely. `--dry-run` previews work, `--lesson` scopes editorial iteration, and `--check` is the release gate; an asset without voice, model, or license metadata is treated as stale.
 7. Generation requires no account, API key, or paid service. A custom voice must be accompanied by an explicit license identifier so distribution rights remain reviewable.
-8. Narration controls exist only on Topic pages. Playback stops before entering Practice or when the Topic page disappears.
+8. Narration controls live in the unified class guide. Playback stops when either one-shot demonstration or looped exercise playback starts, the active lesson changes, or class mode ends, preventing narration and practice audio from overlapping.
 
 The generator follows Pocket TTS's official [CLI](https://kyutai-labs.github.io/pocket-tts/CLI%20Commands/generate/) through `uvx`. The code is MIT licensed and the model is CC BY 4.0. Voice licenses vary: the default Alba voice is CC BY 4.0, while the official voice repository also contains both permissive and noncommercial sources. Noncommercial voices must not be used for a distributable commercial build.
 

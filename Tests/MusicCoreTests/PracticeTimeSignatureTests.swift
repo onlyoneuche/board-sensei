@@ -18,4 +18,11 @@ struct PracticeTimeSignatureTests {
         #expect(Set(signatures.map(\.id)).count == signatures.count)
         #expect(signatures.contains(.fourFour))
     }
+
+    @Test("Exercise loops end on a complete measure")
+    func barAlignedLoopLength() {
+        #expect(PracticeTimeSignature.fourFour.barAlignedBeatCount(forPromptCount: 6) == 8)
+        #expect(PracticeTimeSignature(numerator: 3, denominator: 4).barAlignedBeatCount(forPromptCount: 6) == 6)
+        #expect(PracticeTimeSignature.fourFour.barAlignedBeatCount(forPromptCount: 0) == 0)
+    }
 }

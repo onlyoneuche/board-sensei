@@ -15,11 +15,20 @@ struct BoardSenseiApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact)
+        .commands {
+            CommandMenu("Playback") {
+                Button("Stop Exercise Playback") {
+                    model.stopExercisePreview()
+                }
+                .keyboardShortcut(.space, modifiers: [])
+                .disabled(!model.isPracticeMode || !model.isPreviewPlaying)
+            }
+        }
 
         Settings {
             SettingsView()
                 .environmentObject(model)
-                .frame(width: 520, height: 320)
+                .frame(width: 620, height: 520)
         }
     }
 }

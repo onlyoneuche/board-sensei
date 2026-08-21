@@ -46,23 +46,24 @@ The script always runs Swift tests. It also runs Rust tests and Clippy when `car
 
 1. Open **Courses** and select the **Jazz** card. The Classical card is a placeholder for a future course.
 2. Choose Beginner, Intermediate, or Advanced, expand a chapter, and select a lesson.
-3. Review its objective, note route, practice focus, and related source chapters.
-4. Select **Start Practice** to enter class mode. Theory, exercise instructions, and the prompt route appear in the left guide while other destinations move to the top bar.
-5. Use the class transport to turn the metronome on, set its independent volume, choose a common time signature, and adjust tempo from 50–180 BPM.
-6. Use **Hear full exercise** in the class guide to preview the complete exercise. If enabled, the metronome and exercise restart together on beat one and remain synchronized while the staff, piano, and lesson route follow playback without changing the score.
-7. Play each highlighted note or complete chord voicing with a MIDI keyboard or the on-screen five-octave piano. Chord prompts also provide **Play shown chord** for hardware-free practice.
-8. Use **Previous** and **Next** at the bottom of the class guide, or open the chapter menu to jump directly to any lesson in the current chapter.
-9. Open a lesson's **Topic page** before starting: it provides the full concept explanation, why it matters, a step-by-step preparation plan, listening guidance, pass condition, and complete route.
-10. Choose **Listen to topic** to hear the bundled studio narration. If a current recording is unavailable, the player identifies and uses the Mac system voice as a fallback. It supports pause, resume, and stop and ends automatically when you leave the page.
-11. During Practice, use the compact class guide for the key concept and immediate playing instructions without leaving the instrument view.
+3. The lesson opens directly in the unified class workspace. Its scrollable left guide contains the complete explanation, purpose, preparation plan, listening focus, success criterion, narration, exercise preview, and route while the staff and keyboard remain available on the right.
+4. Drag the divider between the guide and instrument workspace left or right to choose how much room each side receives.
+5. Use the class transport to arm the metronome, set its independent volume, choose a common time signature, and adjust tempo from 50–180 BPM. Arming the metronome is silent; clicks sound only during exercise playback.
+6. Use **Hear full exercise** for one complete demonstration. Toggle the adjacent repeat icon before or during playback to cycle the same exercise continuously. The loop follows the selected tempo, pads each repetition to a complete measure, and restarts on beat one while the metronome, staff, piano, and lesson route remain synchronized without changing the score.
+7. Press **Space** while a demonstration or loop is running to stop it. Space is stop-only and does nothing while playback is idle.
+8. Choose **Listen** in Lesson narration to hear the bundled studio recording. If a current recording is unavailable, the player identifies and uses the Mac system voice as a fallback. It supports pause, resume, and stop and ends automatically when you change lessons or leave class mode.
+9. Play each highlighted note or complete chord voicing with a MIDI keyboard or the on-screen five-octave piano. Chord prompts also provide **Play shown chord** for hardware-free practice.
+10. Select the instrument icon beneath the output meter to choose a grand piano, electric piano, synth lead, or synth pad. The selection is saved and applies to live playing, demonstrations, and loops.
+11. Use **Previous** and **Next** at the bottom of the class guide, or open the chapter menu to jump directly to any lesson in the current chapter.
 12. Completed lessons are saved automatically on this Mac and shown as ticks on the course path.
-13. Open **MIDI Lab** to select a device, inspect normalized events, or recover from a stuck note with **Panic**.
+13. Open **Settings** to choose the full-key colors used for expected notes and pressed/preview notes. Changes are saved immediately; **Restore Defaults** returns to the studio-blue palette.
+14. Open **MIDI Lab** to select a device, inspect normalized events, or recover from a stuck note with **Panic**.
 
 The sampler first looks for a bundled `Piano.sf2`. Until a licensed SoundFont is added, it uses the system General MIDI bank when available. Do not commit a third-party SoundFont without confirming redistribution rights.
 
-## Topic narration
+## Lesson narration
 
-Topic narration is generated ahead of release with the free, local [Kyutai Pocket TTS](https://github.com/kyutai-labs/pocket-tts) model and bundled as its native 24 kHz mono WAV audio. The shipped app makes no TTS network call and contains no service credential or Python runtime. Each lesson exposes one canonical, speech-friendly `narrationScript` and SHA-256 content hash. `manifest.json` records that hash alongside the generated file, voice, voice license, model configuration, and generation date. The app plays a recording only when its hash matches the current script; otherwise it reports and uses the system-voice fallback.
+Lesson narration is generated ahead of release with the free, local [Kyutai Pocket TTS](https://github.com/kyutai-labs/pocket-tts) model and bundled as its native 24 kHz mono WAV audio. The shipped app makes no TTS network call and contains no service credential or Python runtime. Each lesson exposes one canonical, speech-friendly `narrationScript` and SHA-256 content hash. `manifest.json` records that hash alongside the generated file, voice, voice license, model configuration, and generation date. The app plays a recording only when its hash matches the current script; otherwise it reports and uses the system-voice fallback.
 
 Generation requires [`uv`](https://docs.astral.sh/uv/getting-started/installation/). Pocket TTS supports Python 3.10 through 3.14, but `uvx` creates and manages that environment independently of the system Python. The first real generation downloads the model; subsequent runs reuse the local cache.
 
@@ -155,10 +156,14 @@ Implemented:
 - Collapsible Jazz chapters with saved completion ticks
 - Lesson-aware treble, bass, or grand-staff notation
 - Simultaneous chord prompts with full-voicing staff and keyboard highlighting
-- Verbose, optionally narrated Topic pages paired with a compact in-class key-concept sidebar
+- Full-key expected and pressed/preview indicators with persistent user-selected colors and automatic label contrast
+- A dedicated Settings page shared with the native macOS Settings window, ready for additional preferences
+- A unified lesson/practice workspace with a resizable, scrollable guide containing full lesson theory, narration, preview, instructions, and route
 - Content-addressed studio narration with incremental generation and a safe system-voice fallback
-- Full-exercise audio preview with persisted tempo selection and synchronized staff/piano highlighting
-- Independent metronome toggle and volume with accented downbeats, common time signatures, and preview synchronization
+- One exercise-playback button with an adjacent cycle-mode toggle for continuous, bar-aligned practice loops, persisted tempo, and synchronized staff/piano highlighting
+- Stop-only Space shortcut for active demonstration or loop playback
+- Silently armed metronome with independent volume, accented downbeats, common time signatures, and clicks restricted to exercise playback
+- Persistent practice-instrument menu with multiple grand pianos, electric pianos, synth leads, and synth pads from compatible SF2/DLS banks
 - In-class Previous/Next navigation and a current-chapter lesson picker with completion status
 - A consistent studio-blue accent throughout the app, paired with a neutral graphite Practice workspace, Logic-inspired panel shading, thin section separators, compact control surfaces, and contextual Quick Help
 - Swift and Rust canonical music-model foundations
@@ -170,7 +175,7 @@ Next milestones:
 2. Persist profiles, settings, and detailed lesson attempts with SwiftData.
 3. Add simultaneous chord validation, timing windows, and deterministic lesson generation in Rust.
 4. Import Standard MIDI Files into the canonical tick-based timeline.
-5. Add transport, count-in, looping, and 50/75/100% practice tempo.
+5. Add count-in, loop-range selection, and 50/75/100% practice tempo presets.
 6. Add MusicXML, then editable audio beat/chord analysis.
 
 ## Design and engineering references
