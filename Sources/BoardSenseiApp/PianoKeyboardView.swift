@@ -12,24 +12,7 @@ struct PianoKeyboardView: View {
     private let minimumKeyboardWidth: CGFloat = 1_080
     private let keyboardHeight: CGFloat = 190
 
-    private var allKeys: [PianoKey] {
-        (36...96).map { note in
-            PianoKey(
-                note: UInt8(note),
-                shortcut: Self.shortcuts[UInt8(note)],
-                isBlack: Self.blackPitchClasses.contains(note % 12)
-            )
-        }
-    }
-
-    private var whiteKeys: [PianoKey] { allKeys.filter { !$0.isBlack } }
-    private var blackKeys: [PianoKey] { allKeys.filter(\.isBlack) }
-
-    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
-    private static let shortcuts: [UInt8: String] = [
-        60: "A", 61: "W", 62: "S", 63: "E", 64: "D", 65: "F",
-        66: "T", 67: "G", 68: "Y", 69: "H", 70: "U", 71: "J", 72: "K",
-    ]
+    private var allKeys: [PianoKey] { PianoKey.fiveOctaves }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -45,11 +28,11 @@ struct PianoKeyboardView: View {
             }
 
             HStack(spacing: 14) {
-                GeometryReader { available in
-                    ScrollView(.horizontal) {
-                        pianoSurface(width: max(available.size.width, minimumKeyboardWidth))
-                    }
-                    .scrollIndicators(.hidden)
+                FiveOctaveKeyboardLayout(
+                    minimumWidth: minimumKeyboardWidth,
+                    keyboardHeight: keyboardHeight
+                ) { key in
+                    keyView(key)
                 }
                 .frame(height: keyboardHeight)
 
@@ -79,35 +62,6 @@ struct PianoKeyboardView: View {
         }
         .padding(14)
         .practicePanel()
-    }
-
-    private func pianoSurface(width: CGFloat) -> some View {
-        let spacing: CGFloat = 1.5
-        let whiteWidth = (width - spacing * CGFloat(whiteKeys.count - 1)) / CGFloat(whiteKeys.count)
-        let blackWidth = whiteWidth * 0.66
-
-        return ZStack(alignment: .topLeading) {
-            HStack(spacing: spacing) {
-                ForEach(whiteKeys) { key in
-                    keyView(key)
-                        .frame(width: whiteWidth, height: keyboardHeight)
-                }
-            }
-
-            ForEach(blackKeys) { key in
-                let precedingWhiteKeys = whiteKeys.filter { $0.note < key.note }.count
-                keyView(key)
-                    .frame(width: blackWidth, height: keyboardHeight * 0.62)
-                    .offset(
-                        x: CGFloat(precedingWhiteKeys) * (whiteWidth + spacing)
-                            - blackWidth / 2 - spacing / 2
-                    )
-                    .zIndex(2)
-            }
-        }
-        .frame(width: width, height: keyboardHeight)
-        .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func keyView(_ key: PianoKey) -> some View {
@@ -144,11 +98,145 @@ struct PianoKeyboardView: View {
     }
 }
 
+/// A read-only view of the same five-octave range used in Practice mode.
+/// It intentionally omits lesson targets, labels, shortcuts, and mouse input.
+struct MIDIControllerKeyboardView: View {
+    @EnvironmentObject private var model: AppModel
+    @AppStorage(KeyboardIndicatorPreferences.activeKey)
+    private var activeIndicatorHex = KeyboardIndicatorPreferences.defaultActiveHex
+
+    private let minimumKeyboardWidth: CGFloat = 1_080
+    private let keyboardHeight: CGFloat = 160
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Controller monitor", systemImage: "pianokeys")
+                .font(.headline)
+
+            FiveOctaveKeyboardLayout(
+                minimumWidth: minimumKeyboardWidth,
+                keyboardHeight: keyboardHeight
+            ) { key in
+                MIDIControllerKeyView(
+                    key: key,
+                    isActive: model.activeNotes.contains(key.note),
+                    activeIndicatorColor: KeyboardIndicatorPreferences.color(
+                        from: activeIndicatorHex,
+                        fallback: KeyboardIndicatorPreferences.defaultActiveHex
+                    )
+                )
+            }
+            .frame(height: keyboardHeight)
+            .accessibilityLabel("Five-octave MIDI controller monitor")
+            .accessibilityHint("Keys light up when notes arrive from the connected MIDI controller.")
+        }
+        .padding(14)
+        .practicePanel()
+    }
+}
+
 private struct PianoKey: Identifiable, Equatable {
     let note: UInt8
     let shortcut: String?
     let isBlack: Bool
     var id: UInt8 { note }
+
+    static let fiveOctaves: [PianoKey] = (36...96).map { note in
+        PianoKey(
+            note: UInt8(note),
+            shortcut: shortcuts[UInt8(note)],
+            isBlack: blackPitchClasses.contains(note % 12)
+        )
+    }
+
+    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
+    private static let shortcuts: [UInt8: String] = [
+        60: "A", 61: "W", 62: "S", 63: "E", 64: "D", 65: "F",
+        66: "T", 67: "G", 68: "Y", 69: "H", 70: "U", 71: "J", 72: "K",
+    ]
+}
+
+private struct FiveOctaveKeyboardLayout<KeyContent: View>: View {
+    let minimumWidth: CGFloat
+    let keyboardHeight: CGFloat
+    private let keyContent: (PianoKey) -> KeyContent
+
+    init(
+        minimumWidth: CGFloat,
+        keyboardHeight: CGFloat,
+        @ViewBuilder keyContent: @escaping (PianoKey) -> KeyContent
+    ) {
+        self.minimumWidth = minimumWidth
+        self.keyboardHeight = keyboardHeight
+        self.keyContent = keyContent
+    }
+
+    var body: some View {
+        GeometryReader { available in
+            ScrollView(.horizontal) {
+                keyboardSurface(width: max(available.size.width, minimumWidth))
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+
+    private func keyboardSurface(width: CGFloat) -> some View {
+        let spacing: CGFloat = 1.5
+        let whiteKeys = PianoKey.fiveOctaves.filter { !$0.isBlack }
+        let blackKeys = PianoKey.fiveOctaves.filter(\.isBlack)
+        let whiteWidth = (width - spacing * CGFloat(whiteKeys.count - 1)) / CGFloat(whiteKeys.count)
+        let blackWidth = whiteWidth * 0.66
+
+        return ZStack(alignment: .topLeading) {
+            HStack(spacing: spacing) {
+                ForEach(whiteKeys) { key in
+                    keyContent(key)
+                        .frame(width: whiteWidth, height: keyboardHeight)
+                }
+            }
+
+            ForEach(blackKeys) { key in
+                let precedingWhiteKeys = whiteKeys.filter { $0.note < key.note }.count
+                keyContent(key)
+                    .frame(width: blackWidth, height: keyboardHeight * 0.62)
+                    .offset(
+                        x: CGFloat(precedingWhiteKeys) * (whiteWidth + spacing)
+                            - blackWidth / 2 - spacing / 2
+                    )
+                    .zIndex(2)
+            }
+        }
+        .frame(width: width, height: keyboardHeight)
+        .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct MIDIControllerKeyView: View {
+    let key: PianoKey
+    let isActive: Bool
+    let activeIndicatorColor: Color
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: key.isBlack ? 5 : 4)
+
+        shape
+            .fill(isActive ? activeIndicatorColor : key.isBlack ? Color.black : Color.white)
+            .overlay {
+                shape.stroke(
+                    isActive
+                        ? KeyboardIndicatorPreferences.contrastingText(for: activeIndicatorColor).opacity(0.72)
+                        : key.isBlack ? Color.white.opacity(0.16) : Color.black.opacity(0.35),
+                    lineWidth: isActive ? 2 : 1
+                )
+            }
+            .shadow(color: .black.opacity(key.isBlack ? 0.34 : 0.16), radius: 2, y: 2)
+            .scaleEffect(isActive ? CGSize(width: 0.98, height: 0.975) : CGSize(width: 1, height: 1), anchor: .top)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(noteName(key.note))
+            .accessibilityValue(isActive ? "Pressed" : "Released")
+            .allowsHitTesting(false)
+    }
 }
 
 private struct PianoKeyView: View {

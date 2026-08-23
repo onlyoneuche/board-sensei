@@ -6,7 +6,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.isPracticeMode {
+            if !model.hasCompletedOnboarding {
+                OnboardingView()
+            } else if model.isPracticeMode {
                 PracticeSessionRootView()
             } else {
                 standardNavigation
@@ -18,15 +20,20 @@ struct RootView: View {
 
     private var standardNavigation: some View {
         NavigationSplitView {
-            List(AppModel.Destination.allCases, selection: $model.destination) { destination in
-                Label(destination.rawValue, systemImage: destination.symbol)
-                    .tag(destination)
-                    .padding(.vertical, 5)
-            }
-            .navigationTitle("Board Sensei")
-            .safeAreaInset(edge: .bottom) {
-                MIDIStatusCard()
-                    .padding(12)
+            VStack(spacing: 0) {
+                BoardSenseiLockup(markSize: 38)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Divider()
+                List(AppModel.Destination.allCases, selection: $model.destination) { destination in
+                    Label(destination.rawValue, systemImage: destination.symbol)
+                        .tag(destination)
+                        .padding(.vertical, 5)
+                }
+                .safeAreaInset(edge: .bottom) {
+                    MIDIStatusCard()
+                        .padding(12)
+                }
             }
         } detail: {
             switch model.destination ?? .courses {
@@ -104,7 +111,7 @@ private struct MetronomeTransportControls: View {
                     .background(model.isMetronomeEnabled ? PracticeTheme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 5))
             }
             .buttonStyle(.plain)
-            .help(model.isMetronomeEnabled ? "Disarm metronome" : "Arm metronome for exercise playback")
+            .help(model.isMetronomeEnabled ? "Disarm metronome" : "Arm metronome for playback or practice looping")
 
             Circle()
                 .fill(beatIndicatorColor)
@@ -172,7 +179,7 @@ private struct MetronomeTransportControls: View {
         .accessibilityElement(children: .contain)
         .quickHelp(
             "Metronome and tempo",
-            "Arm clicks for exercise playback, change BPM or meter, and set click volume. The metronome stays silent when playback is stopped."
+            "Arm clicks, change BPM or meter, and set click volume. The metronome sounds only during exercise playback or an explicit scored practice loop."
         )
     }
 
@@ -289,7 +296,7 @@ private struct LessonGuideSidebar: View {
                     }
                     .quickHelp(
                         "Exercise playback",
-                        "Play one complete demonstration. Enable the repeat button to turn the same playback into a bar-aligned practice loop."
+                        "Play one complete demonstration. Enable the repeat button to cycle the demonstration; scored practice looping is offered after a completed pass."
                     )
                 }
 

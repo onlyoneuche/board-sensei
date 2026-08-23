@@ -87,10 +87,16 @@ Inside any future audio render callback, also forbid allocation, locks, actors/t
 - Read `accessibilityReduceMotion` and replace energetic motion with static or fading feedback.
 - Give every custom musical visualization a useful accessibility label and value.
 - A MIDI keyboard must not be required for development; maintain simulated input controls.
+- When a MIDI device is connected, MIDI Lab mirrors incoming notes on a read-only five-octave keyboard. Reuse the Practice keyboard geometry, but keep this monitor free of lesson targets, note labels, shortcut labels, and pointer input.
 - Do not copy another learning product's artwork or layout. Preserve Board Sensei's own visual identity.
 - Use flat semantic colors; do not introduce color gradients. Materials may be used sparingly for native macOS depth, but content hierarchy must not depend on decorative effects.
 - Use the standard macOS system font and default design consistently. Reserve monospaced variants for MIDI values, note routes, tempo, counters, and other data.
 - Keep persistent labels concise. Move nonessential control explanations into contextual Quick Help with the shared `.quickHelp(title, detail)` modifier; keep accessibility labels even when visible picker labels are hidden.
+- First launch uses a replayable four-step onboarding flow: goal, experience, optional MIDI setup, and one playable first note. It must never require MIDI or lock course access.
+- Keep gamification tied to learning evidence: Introduced on lesson entry, Practised after completion, and Mastered after three completions with best accuracy of at least 90%. Do not add coins, lives, punitive missed-day messaging, or unrelated XP.
+- Completion celebrations must respect both the app preference and `accessibilityReduceMotion`. Completion audio is a dedicated, locally synthesized high-register chime sequence, remains independent of the selected practice instrument, stays optional, and must be cancelled when practice or preview state changes.
+- Never interrupt a completed player with a blocking success modal. Keep pass results inline so the staff and keyboard remain usable, and offer manual repeat, scored practice looping, and learner-controlled Next navigation there.
+- The Board Sensei mark is a compact side-profile grand piano and seated learner, crossed by one studio-blue guidance gesture. Keep its bundled source asset, Dock icon, onboarding identity, and navigation lockup visually consistent; preserve the solid off-white presentation tile for light/dark contrast, and do not add a mascot without an explicit product decision.
 
 ## Course authoring
 
@@ -109,7 +115,7 @@ Inside any future audio render callback, also forbid allocation, locks, actors/t
 - Exercise playback is non-scoring: **Hear full exercise** is the sole play/stop action, and its adjacent repeat icon toggles whether that playback cycles. Send playback through `AudioService` on its preview channel, expose it as display state, and never feed it through the practice validator or completion counters.
 - Space is a global stop-only shortcut while demonstration or loop playback is active. It must not start playback when idle or interfere with labeled A–K piano shortcuts.
 - Stop preview playback on lesson reset, lesson change, and class exit so no sampler notes or animation state can leak into another screen.
-- The metronome uses its own `AVAudioPlayerNode`, buffers, and MIDI-independent volume. Its toggle only arms clicks; it must never start a standalone clock. Schedule clicks exclusively from the same beat loop as exercise playback. Pad cycle-mode repetitions to the next complete measure so every repetition restarts on beat one.
+- The metronome uses its own `AVAudioPlayerNode`, buffers, and MIDI-independent volume. Its toggle only arms clicks; it must never start a standalone clock. Schedule clicks from exercise playback or an explicitly started scored practice loop. Queue practice-loop pass resets inside that clock on beat zero; pad demonstration-cycle repetitions to the next complete measure so every repetition restarts on beat one.
 - Practice instruments are zero-based General MIDI programs grouped by `PracticeInstrument`. Load them through the existing sampler, send all-notes-off before switching, fall back from an incompatible bundled SF2 to the system DLS bank, persist the successful selection, and apply one program consistently to live, simulated, preview, and loop notes.
 - Treat BPM as quarter-note tempo and scale beat duration by the time-signature denominator. Accent beat zero of every bar and test timing math in `PracticeTimeSignatureTests`.
 - Staff selection is derived from the lesson's complete pitch range: pitches below middle C use bass, pitches at or above middle C use treble, and lessons spanning both use a grand staff. Add an explicit notation override only when pedagogy requires one.

@@ -20,7 +20,10 @@ let package = Package(
         .executableTarget(
             name: "BoardSenseiApp",
             dependencies: ["MusicCore", "CBoardSenseiBridge"],
-            resources: [.copy("Resources/Narration")]
+            resources: [
+                .copy("Resources/Narration"),
+                .copy("Resources/Brand"),
+            ]
         ),
         .executableTarget(name: "BoardSenseiNarrationTool", dependencies: ["MusicCore"]),
         .testTarget(

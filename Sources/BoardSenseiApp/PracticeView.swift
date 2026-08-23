@@ -27,6 +27,11 @@ struct PracticeView: View {
                             "The staff follows the active prompt and switches between treble, bass, or grand staff for the lesson range."
                         )
                         feedbackPanel
+                        if let result = model.lessonCompletionResult {
+                            LessonCompletionPanel(result: result)
+                                .id(result.id)
+                                .transition(.opacity)
+                        }
                         PianoKeyboardView()
                     }
                     .padding(14)
@@ -48,6 +53,15 @@ struct PracticeView: View {
                     .lineLimit(2)
             }
             Spacer()
+            if let mastery = model.mastery(for: model.activeLesson) {
+                Label(mastery.title, systemImage: masterySymbol(mastery))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(mastery == .mastered ? AppTheme.accent : Color.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(PracticeTheme.raised, in: RoundedRectangle(cornerRadius: 5))
+                    .accessibilityLabel("Lesson status: \(mastery.title)")
+            }
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 12)
@@ -58,6 +72,7 @@ struct PracticeView: View {
         HStack(spacing: 18) {
             ProgressView(value: model.lessonProgress)
                 .tint(PracticeTheme.accent)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: model.lessonProgress)
                 .accessibilityLabel("Lesson progress")
                 .accessibilityValue("\(model.completedNotes) of \(model.activeLesson.promptCount) prompts")
             Label("\(model.streak)", systemImage: "flame.fill")
@@ -170,4 +185,13 @@ struct PracticeView: View {
     private func staffHeight(for availableHeight: CGFloat) -> CGFloat {
         max(340, availableHeight - 520)
     }
+
+    private func masterySymbol(_ mastery: LessonMastery) -> String {
+        switch mastery {
+        case .introduced: "circle.dotted"
+        case .practiced: "checkmark.circle.fill"
+        case .mastered: "seal.fill"
+        }
+    }
+
 }

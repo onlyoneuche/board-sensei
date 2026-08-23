@@ -19,9 +19,11 @@ final class AudioService: ObservableObject {
     private let engine = AVAudioEngine()
     private let sampler = AVAudioUnitSampler()
     private let metronomePlayer = AVAudioPlayerNode()
+    private let completionChimePlayer = AVAudioPlayerNode()
     private let metronomeFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
     private let accentedClick: AVAudioPCMBuffer
     private let regularClick: AVAudioPCMBuffer
+    private let completionChime: AVAudioPCMBuffer
     private let levelMeter = bs_level_meter_create()
     private var activeNotes: Set<UInt8> = []
     private var previewNotes: Set<UInt8> = []
@@ -36,12 +38,16 @@ final class AudioService: ObservableObject {
         }
         accentedClick = Self.makeClickBuffer(frequency: 1_900, amplitude: 0.9)
         regularClick = Self.makeClickBuffer(frequency: 1_280, amplitude: 0.64)
+        completionChime = Self.makeCompletionChimeBuffer()
         engine.attach(sampler)
         engine.attach(metronomePlayer)
+        engine.attach(completionChimePlayer)
         engine.connect(sampler, to: engine.mainMixerNode, format: nil)
         engine.connect(metronomePlayer, to: engine.mainMixerNode, format: metronomeFormat)
+        engine.connect(completionChimePlayer, to: engine.mainMixerNode, format: metronomeFormat)
         engine.mainMixerNode.outputVolume = volume
         metronomePlayer.volume = metronomeVolume
+        completionChimePlayer.volume = 0.58
     }
 
     func start() {
@@ -80,6 +86,7 @@ final class AudioService: ObservableObject {
         }
         activeNotes.removeAll()
         previewNotes.removeAll()
+        stopCompletionChime()
     }
 
     func selectInstrument(_ instrument: PracticeInstrument) {
@@ -133,6 +140,18 @@ final class AudioService: ObservableObject {
         guard engine.isRunning else { return }
         metronomePlayer.scheduleBuffer(accented ? accentedClick : regularClick)
         if !metronomePlayer.isPlaying { metronomePlayer.play() }
+    }
+
+    func playCompletionChime() {
+        if !engine.isRunning { start() }
+        guard engine.isRunning else { return }
+        completionChimePlayer.stop()
+        completionChimePlayer.scheduleBuffer(completionChime)
+        completionChimePlayer.play()
+    }
+
+    func stopCompletionChime() {
+        completionChimePlayer.stop()
     }
 
     private func loadInstrument(_ instrument: PracticeInstrument) throws {
@@ -203,6 +222,39 @@ final class AudioService: ObservableObject {
             let time = Double(frame) / sampleRate
             let envelope = Float(exp(-time * 105))
             samples[frame] = sin(Float(2 * Double.pi * frequency * time)) * envelope * amplitude
+        }
+        return buffer
+    }
+
+    private static func makeCompletionChimeBuffer() -> AVAudioPCMBuffer {
+        let sampleRate = 44_100.0
+        let duration = 1.05
+        let frameCount = AVAudioFrameCount(sampleRate * duration)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+        buffer.frameLength = frameCount
+        let samples = buffer.floatChannelData![0]
+        let strikes: [(start: Double, frequency: Double, amplitude: Double)] = [
+            (0.00, 1_568.0, 0.38), // G6
+            (0.16, 2_093.0, 0.34), // C7
+            (0.32, 2_637.0, 0.30), // E7
+        ]
+
+        for frame in 0..<Int(frameCount) {
+            let time = Double(frame) / sampleRate
+            var sample = 0.0
+
+            for strike in strikes where time >= strike.start {
+                let elapsed = time - strike.start
+                let attack = min(elapsed / 0.004, 1)
+                let decay = exp(-elapsed * 5.7)
+                let fundamental = sin(2 * Double.pi * strike.frequency * elapsed)
+                let shimmer = 0.34 * sin(2 * Double.pi * strike.frequency * 2.01 * elapsed)
+                let bellPartial = 0.14 * sin(2 * Double.pi * strike.frequency * 3.91 * elapsed)
+                sample += (fundamental + shimmer + bellPartial) * attack * decay * strike.amplitude
+            }
+
+            samples[frame] = Float(tanh(sample))
         }
         return buffer
     }

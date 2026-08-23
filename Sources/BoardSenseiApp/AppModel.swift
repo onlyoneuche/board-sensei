@@ -60,6 +60,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isPracticeMode = false
     @Published private(set) var isPreviewPlaying = false
     @Published private(set) var isExerciseLoopEnabled = false
+    @Published private(set) var isPracticeLoopActive = false
     @Published private(set) var previewPitches: [UInt8] = []
     @Published private(set) var previewPromptIndex: Int?
     @Published private(set) var previewTempoBPM = 90
@@ -68,6 +69,16 @@ final class AppModel: ObservableObject {
     @Published private(set) var metronomeBeatIndex: Int?
     @Published private(set) var metronomeVolume: Float = 0.62
     @Published private(set) var quickHelpContent: QuickHelpContent?
+    @Published private(set) var hasCompletedOnboarding = false
+    @Published private(set) var learningGoal = LearningGoal.jazzFluency
+    @Published private(set) var learnerExperience = LearnerExperience.beginner
+    @Published private(set) var lessonRecords: [String: LessonProgressRecord] = [:]
+    @Published private(set) var unlockedAchievements: Set<LearningAchievement> = []
+    @Published private(set) var lessonCompletionResult: LessonCompletionResult?
+    @Published private(set) var practiceDayStreak = 0
+    @Published private(set) var celebrationSoundsEnabled = true
+    @Published private(set) var animatedCelebrationsEnabled = true
+    @Published private(set) var practiceStreaksEnabled = true
 
     let audio = AudioService()
     private let midi = CoreMIDIService()
@@ -75,6 +86,9 @@ final class AppModel: ObservableObject {
     private var eventTask: Task<Void, Never>?
     private var deviceTask: Task<Void, Never>?
     private var previewTask: Task<Void, Never>?
+    private var completionSoundTask: Task<Void, Never>?
+    private var practiceLoopTask: Task<Void, Never>?
+    private var practiceLoopRestartPending = false
 
     var isUsingRust: Bool { validator.isUsingRust }
     private let completedLessonsKey = "completedJazzLessonIDs"
@@ -82,6 +96,14 @@ final class AppModel: ObservableObject {
     private let metronomeEnabledKey = "practiceMetronomeEnabled"
     private let metronomeVolumeKey = "practiceMetronomeVolume"
     private let metronomeSignatureKey = "practiceMetronomeSignature"
+    private let onboardingCompletedKey = "onboardingCompletedV1"
+    private let learningGoalKey = "learningGoalV1"
+    private let learnerExperienceKey = "learnerExperienceV1"
+    private let practiceDayStreakKey = "practiceDayStreakV1"
+    private let lastPracticeDayKey = "lastPracticeDayV1"
+    private let celebrationSoundsKey = "celebrationSoundsEnabledV1"
+    private let animatedCelebrationsKey = "animatedCelebrationsEnabledV1"
+    private let practiceStreaksKey = "practiceStreaksEnabledV1"
 
     var expectedPitch: UInt8 { expectedPitches.first ?? 60 }
     var lessonProgress: Double { Double(completedNotes) / Double(activeLesson.promptCount) }
@@ -96,6 +118,39 @@ final class AppModel: ObservableObject {
     init() {
         let stored = UserDefaults.standard.stringArray(forKey: completedLessonsKey) ?? []
         completedLessonIDs = Set(stored)
+        lessonRecords = LearningExperienceStore.loadRecords()
+        for lessonID in completedLessonIDs where lessonRecords[lessonID] == nil {
+            lessonRecords[lessonID] = LessonProgressRecord(
+                practiceStarts: 1,
+                completions: 1,
+                bestAccuracy: 1,
+                lastAccuracy: 1
+            )
+        }
+        unlockedAchievements = LearningExperienceStore.loadAchievements()
+        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: onboardingCompletedKey)
+        if let rawGoal = UserDefaults.standard.string(forKey: learningGoalKey),
+           let goal = LearningGoal(rawValue: rawGoal) {
+            learningGoal = goal
+        }
+        if let rawExperience = UserDefaults.standard.string(forKey: learnerExperienceKey),
+           let experience = LearnerExperience(rawValue: rawExperience) {
+            learnerExperience = experience
+        }
+        practiceDayStreak = max(0, UserDefaults.standard.integer(forKey: practiceDayStreakKey))
+        if let lastPracticeDate = UserDefaults.standard.object(forKey: lastPracticeDayKey) as? Date {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let lastDay = calendar.startOfDay(for: lastPracticeDate)
+            let elapsedDays = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
+            if elapsedDays > 1 {
+                practiceDayStreak = 0
+                UserDefaults.standard.set(0, forKey: practiceDayStreakKey)
+            }
+        }
+        celebrationSoundsEnabled = UserDefaults.standard.object(forKey: celebrationSoundsKey) as? Bool ?? true
+        animatedCelebrationsEnabled = UserDefaults.standard.object(forKey: animatedCelebrationsKey) as? Bool ?? true
+        practiceStreaksEnabled = UserDefaults.standard.object(forKey: practiceStreaksKey) as? Bool ?? true
         let storedTempo = UserDefaults.standard.integer(forKey: previewTempoKey)
         previewTempoBPM = storedTempo == 0 ? 90 : min(max(storedTempo, 50), 180)
         isMetronomeEnabled = UserDefaults.standard.bool(forKey: metronomeEnabledKey)
@@ -195,7 +250,36 @@ final class AppModel: ObservableObject {
     }
 
     func resetLesson() {
+        stopPracticeLoop()
+        resetCurrentPass(clearResult: true)
+    }
+
+    func practiseAgain() {
+        stopPracticeLoop()
+        resetCurrentPass(clearResult: true)
+    }
+
+    func startPracticeLoop() {
+        stopPracticeLoop()
         stopExercisePreview()
+        isPracticeLoopActive = true
+        setMetronomeEnabled(true)
+        resetCurrentPass(clearResult: false)
+        startPracticeLoopClock()
+    }
+
+    func stopPracticeLoop() {
+        practiceLoopTask?.cancel()
+        practiceLoopTask = nil
+        practiceLoopRestartPending = false
+        isPracticeLoopActive = false
+        if !isPreviewPlaying { metronomeBeatIndex = nil }
+    }
+
+    private func resetCurrentPass(clearResult: Bool) {
+        stopCompletionSound()
+        stopExercisePreview()
+        if clearResult { lessonCompletionResult = nil }
         completedNotes = 0
         mistakes = 0
         streak = 0
@@ -206,9 +290,14 @@ final class AppModel: ObservableObject {
 
     func startLesson(_ lesson: PracticeLesson) {
         clearQuickHelp()
+        stopPracticeLoop()
         stopExercisePreview()
         audio.panic()
         activeLesson = lesson
+        var record = lessonRecords[lesson.id] ?? LessonProgressRecord()
+        record.registerStart()
+        lessonRecords[lesson.id] = record
+        LearningExperienceStore.saveRecords(lessonRecords)
         resetLesson()
         isPracticeMode = true
     }
@@ -216,6 +305,7 @@ final class AppModel: ObservableObject {
     func leavePractice(for destination: Destination = .courses) {
         clearQuickHelp()
         isPracticeMode = false
+        stopPracticeLoop()
         stopExercisePreview()
         audio.panic()
         self.destination = destination
@@ -225,9 +315,62 @@ final class AppModel: ObservableObject {
         completedLessonIDs.contains(lesson.id)
     }
 
+    func mastery(for lesson: PracticeLesson) -> LessonMastery? {
+        lessonRecords[lesson.id]?.mastery
+    }
+
+    func progressRecord(for lesson: PracticeLesson) -> LessonProgressRecord? {
+        lessonRecords[lesson.id]
+    }
+
+    func chooseLearningGoal(_ goal: LearningGoal) {
+        learningGoal = goal
+        UserDefaults.standard.set(goal.rawValue, forKey: learningGoalKey)
+    }
+
+    func chooseLearnerExperience(_ experience: LearnerExperience) {
+        learnerExperience = experience
+        UserDefaults.standard.set(experience.rawValue, forKey: learnerExperienceKey)
+    }
+
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        destination = .courses
+        UserDefaults.standard.set(true, forKey: onboardingCompletedKey)
+    }
+
+    func restartOnboarding() {
+        leavePractice(for: .courses)
+        hasCompletedOnboarding = false
+        UserDefaults.standard.set(false, forKey: onboardingCompletedKey)
+    }
+
+    func setCelebrationSoundsEnabled(_ enabled: Bool) {
+        celebrationSoundsEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: celebrationSoundsKey)
+    }
+
+    func setAnimatedCelebrationsEnabled(_ enabled: Bool) {
+        animatedCelebrationsEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: animatedCelebrationsKey)
+    }
+
+    func setPracticeStreaksEnabled(_ enabled: Bool) {
+        practiceStreaksEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: practiceStreaksKey)
+    }
+
+    func dismissLessonResult() {
+        lessonCompletionResult = nil
+    }
+
     func resetCourseProgress() {
         completedLessonIDs.removeAll()
+        lessonRecords.removeAll()
+        unlockedAchievements.removeAll()
         persistCourseProgress()
+        LearningExperienceStore.saveRecords(lessonRecords)
+        LearningExperienceStore.saveAchievements(unlockedAchievements)
     }
 
     func setPreviewTempo(_ beatsPerMinute: Int) {
@@ -238,7 +381,7 @@ final class AppModel: ObservableObject {
     func setMetronomeEnabled(_ enabled: Bool) {
         isMetronomeEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: metronomeEnabledKey)
-        if !enabled { metronomeBeatIndex = nil }
+        if !enabled, !isPracticeLoopActive { metronomeBeatIndex = nil }
     }
 
     func setMetronomeVolume(_ volume: Float) {
@@ -251,6 +394,7 @@ final class AppModel: ObservableObject {
     func setMetronomeSignature(_ signature: PracticeTimeSignature) {
         metronomeSignature = signature
         UserDefaults.standard.set(signature.id, forKey: metronomeSignatureKey)
+        if isPracticeLoopActive { startPracticeLoopClock() }
     }
 
     func showQuickHelp(title: String, detail: String) {
@@ -271,6 +415,8 @@ final class AppModel: ObservableObject {
     }
 
     func startExercisePreview() {
+        stopCompletionSound()
+        stopPracticeLoop()
         stopExercisePreview()
         isPreviewPlaying = true
         previewTask = Task { [weak self] in
@@ -285,6 +431,7 @@ final class AppModel: ObservableObject {
         previewPitches = []
         previewPromptIndex = nil
         isPreviewPlaying = false
+        if !isPracticeLoopActive { metronomeBeatIndex = nil }
     }
 
     private func handle(_ event: NormalizedMIDIEvent) {
@@ -301,7 +448,7 @@ final class AppModel: ObservableObject {
             break
         }
 
-        guard !isPreviewPlaying else { return }
+        guard isPracticeMode, !isPreviewPlaying else { return }
         guard completedNotes < activeLesson.promptCount else { return }
         guard case let .noteOn(note, velocity, channel, timestamp) = event, velocity > 0 else { return }
 
@@ -351,11 +498,117 @@ final class AppModel: ObservableObject {
         } else {
             completedLessonIDs.insert(activeLesson.id)
             persistCourseProgress()
+            recordLessonCompletion()
         }
     }
 
     private func persistCourseProgress() {
         UserDefaults.standard.set(completedLessonIDs.sorted(), forKey: completedLessonsKey)
+    }
+
+    private func recordLessonCompletion() {
+        var record = lessonRecords[activeLesson.id] ?? LessonProgressRecord()
+        let priorMastery = record.mastery
+        let priorBest = record.bestAccuracy
+        let accuracy = record.registerCompletion(
+            promptCount: activeLesson.promptCount,
+            mistakes: mistakes
+        )
+        lessonRecords[activeLesson.id] = record
+        LearningExperienceStore.saveRecords(lessonRecords)
+        updatePracticeDayStreak()
+
+        let achievements = newlyEarnedAchievements(after: record)
+        lessonCompletionResult = LessonCompletionResult(
+            lessonID: activeLesson.id,
+            lessonTitle: activeLesson.title,
+            accuracy: accuracy,
+            mistakes: mistakes,
+            mastery: record.mastery,
+            masteryAdvanced: priorMastery != record.mastery,
+            personalBest: accuracy > priorBest,
+            newAchievements: achievements
+        )
+
+        if celebrationSoundsEnabled {
+            playCompletionChime()
+        }
+        if isPracticeLoopActive {
+            practiceLoopRestartPending = true
+        }
+    }
+
+    private func newlyEarnedAchievements(after record: LessonProgressRecord) -> [LearningAchievement] {
+        var candidates: [LearningAchievement] = []
+        if completedLessonIDs.count >= 1 { candidates.append(.firstLesson) }
+        if completedLessonIDs.count >= 5 { candidates.append(.fiveLessons) }
+        if record.mastery == .mastered { candidates.append(.firstMastery) }
+        let earned = candidates.filter { !unlockedAchievements.contains($0) }
+        unlockedAchievements.formUnion(earned)
+        LearningExperienceStore.saveAchievements(unlockedAchievements)
+        return earned
+    }
+
+    private func updatePracticeDayStreak() {
+        let defaults = UserDefaults.standard
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let lastDate = defaults.object(forKey: lastPracticeDayKey) as? Date
+
+        if let lastDate {
+            let lastDay = calendar.startOfDay(for: lastDate)
+            if lastDay == today { return }
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today)
+            practiceDayStreak = lastDay == yesterday ? practiceDayStreak + 1 : 1
+        } else {
+            practiceDayStreak = 1
+        }
+
+        defaults.set(today, forKey: lastPracticeDayKey)
+        defaults.set(practiceDayStreak, forKey: practiceDayStreakKey)
+    }
+
+    private func playCompletionChime() {
+        completionSoundTask?.cancel()
+        completionSoundTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled else { return }
+            guard !self.isPreviewPlaying else { return }
+            self.audio.playCompletionChime()
+            self.completionSoundTask = nil
+        }
+    }
+
+    private func stopCompletionSound() {
+        completionSoundTask?.cancel()
+        completionSoundTask = nil
+        audio.stopCompletionChime()
+    }
+
+    private func startPracticeLoopClock() {
+        practiceLoopTask?.cancel()
+        practiceLoopTask = Task { [weak self] in
+            guard let self else { return }
+            var beat = 0
+            while !Task.isCancelled, self.isPracticeLoopActive {
+                if beat == 0, self.practiceLoopRestartPending {
+                    self.resetCurrentPass(clearResult: false)
+                    self.practiceLoopRestartPending = false
+                }
+                self.metronomeBeatIndex = beat
+                if self.isMetronomeEnabled {
+                    self.audio.playMetronomeClick(accented: beat == 0)
+                }
+
+                do {
+                    try await Task.sleep(for: .milliseconds(self.currentBeatMilliseconds))
+                } catch {
+                    return
+                }
+                beat = (beat + 1) % self.metronomeSignature.numerator
+            }
+        }
     }
 
     private func runExercisePreview() async {

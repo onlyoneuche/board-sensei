@@ -37,6 +37,7 @@ struct BoardSenseiApp: App {
 final class BoardSenseiAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.applicationIconImage = BoardSenseiAppIcon.make()
         DispatchQueue.main.async {
             NSApplication.shared.windows.first?.makeKeyAndOrderFront(nil)
             NSApplication.shared.activate()

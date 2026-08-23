@@ -32,6 +32,32 @@ struct SettingsView: View {
                     AudioSettingsControls(audio: model.audio)
                 }
 
+                Section("Learning experience") {
+                    Picker("Practice goal", selection: learningGoalBinding) {
+                        ForEach(LearningGoal.allCases) { goal in
+                            Text(goal.rawValue).tag(goal)
+                        }
+                    }
+                    Picker("Starting point", selection: learnerExperienceBinding) {
+                        ForEach(LearnerExperience.allCases) { experience in
+                            Text(experience.rawValue).tag(experience)
+                        }
+                    }
+                    Toggle("Completion sounds", isOn: celebrationSoundsBinding)
+                    Toggle("Animated celebrations", isOn: animatedCelebrationsBinding)
+                    Toggle("Practice-day rhythm", isOn: practiceStreaksBinding)
+
+                    HStack {
+                        Text("Practice-day rhythm updates only when a lesson is completed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Run Onboarding Again", systemImage: "sparkles") {
+                            model.restartOnboarding()
+                        }
+                    }
+                }
+
                 Section("Practice engine") {
                     LabeledContent("Active core", value: model.isUsingRust ? "Rust" : "Native fallback")
                     Text("Build the Rust library before launching to activate the portable engine automatically.")
@@ -122,6 +148,41 @@ struct SettingsView: View {
                     fallback: KeyboardIndicatorPreferences.defaultActiveHex
                 )
             }
+        )
+    }
+
+    private var learningGoalBinding: Binding<LearningGoal> {
+        Binding(
+            get: { model.learningGoal },
+            set: { value in model.chooseLearningGoal(value) }
+        )
+    }
+
+    private var learnerExperienceBinding: Binding<LearnerExperience> {
+        Binding(
+            get: { model.learnerExperience },
+            set: { value in model.chooseLearnerExperience(value) }
+        )
+    }
+
+    private var celebrationSoundsBinding: Binding<Bool> {
+        Binding(
+            get: { model.celebrationSoundsEnabled },
+            set: { value in model.setCelebrationSoundsEnabled(value) }
+        )
+    }
+
+    private var animatedCelebrationsBinding: Binding<Bool> {
+        Binding(
+            get: { model.animatedCelebrationsEnabled },
+            set: { value in model.setAnimatedCelebrationsEnabled(value) }
+        )
+    }
+
+    private var practiceStreaksBinding: Binding<Bool> {
+        Binding(
+            get: { model.practiceStreaksEnabled },
+            set: { value in model.setPracticeStreaksEnabled(value) }
         )
     }
 }

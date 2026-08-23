@@ -1,6 +1,6 @@
 # Board Sensei
 
-Board Sensei is a native macOS piano-practice trainer. It discovers a MIDI keyboard, normalizes incoming events, plays them through a local sampler, and validates each note against an animated treble-clef exercise.
+Board Sensei is a native macOS piano-practice trainer. It discovers a MIDI keyboard, normalizes incoming events, plays them through a local sampler, and validates notes and chord voicings against animated treble, bass, or grand-staff exercises.
 
 The current repository includes a 36-lesson Jazz Course, live MIDI diagnostics, audio monitoring, a SpriteKit staff, a canonical song model, and a Rust practice-engine ABI. The app remains usable without Rust installed by falling back to the small native bridge implementation.
 
@@ -44,20 +44,22 @@ The script always runs Swift tests. It also runs Rust tests and Clippy when `car
 
 ## Using the app
 
-1. Open **Courses** and select the **Jazz** card. The Classical card is a placeholder for a future course.
-2. Choose Beginner, Intermediate, or Advanced, expand a chapter, and select a lesson.
-3. The lesson opens directly in the unified class workspace. Its scrollable left guide contains the complete explanation, purpose, preparation plan, listening focus, success criterion, narration, exercise preview, and route while the staff and keyboard remain available on the right.
-4. Drag the divider between the guide and instrument workspace left or right to choose how much room each side receives.
-5. Use the class transport to arm the metronome, set its independent volume, choose a common time signature, and adjust tempo from 50–180 BPM. Arming the metronome is silent; clicks sound only during exercise playback.
-6. Use **Hear full exercise** for one complete demonstration. Toggle the adjacent repeat icon before or during playback to cycle the same exercise continuously. The loop follows the selected tempo, pads each repetition to a complete measure, and restarts on beat one while the metronome, staff, piano, and lesson route remain synchronized without changing the score.
-7. Press **Space** while a demonstration or loop is running to stop it. Space is stop-only and does nothing while playback is idle.
-8. Choose **Listen** in Lesson narration to hear the bundled studio recording. If a current recording is unavailable, the player identifies and uses the Mac system voice as a fallback. It supports pause, resume, and stop and ends automatically when you change lessons or leave class mode.
-9. Play each highlighted note or complete chord voicing with a MIDI keyboard or the on-screen five-octave piano. Chord prompts also provide **Play shown chord** for hardware-free practice.
-10. Select the instrument icon beneath the output meter to choose a grand piano, electric piano, synth lead, or synth pad. The selection is saved and applies to live playing, demonstrations, and loops.
-11. Use **Previous** and **Next** at the bottom of the class guide, or open the chapter menu to jump directly to any lesson in the current chapter.
-12. Completed lessons are saved automatically on this Mac and shown as ticks on the course path.
-13. Open **Settings** to choose the full-key colors used for expected notes and pressed/preview notes. Changes are saved immediately; **Restore Defaults** returns to the studio-blue palette.
-14. Open **MIDI Lab** to select a device, inspect normalized events, or recover from a stuck note with **Panic**.
+1. First launch opens a four-step onboarding flow: choose a practice goal and starting point, connect or skip a MIDI controller, then play middle C for an immediate first feedback moment. **Skip setup** remains available, and onboarding can be replayed later from Settings.
+2. Open **Courses** and select the **Jazz** card. The Classical card is a placeholder for a future course. Jazz initially opens at the level selected during onboarding, while every level remains freely available.
+3. Choose Beginner, Intermediate, or Advanced, expand a chapter, and select a lesson.
+4. The lesson opens directly in the unified class workspace. Its scrollable left guide contains the complete explanation, purpose, preparation plan, listening focus, success criterion, narration, exercise preview, and route while the staff and keyboard remain available on the right.
+5. Drag the divider between the guide and instrument workspace left or right to choose how much room each side receives.
+6. Use the class transport to arm the metronome, set its independent volume, choose a common time signature, and adjust tempo from 50–180 BPM. Arming the metronome is silent; clicks sound only during exercise playback or the explicit scored practice loop.
+7. Use **Hear full exercise** for one complete demonstration. Toggle the adjacent repeat icon before or during playback to cycle that demonstration continuously. The cycle follows the selected tempo, pads each repetition to a complete measure, and restarts on beat one while the metronome, staff, piano, and lesson route remain synchronized without changing the score.
+8. Press **Space** while a demonstration or loop is running to stop it. Space is stop-only and does nothing while playback is idle.
+9. Choose **Listen** in Lesson narration to hear the bundled studio recording. If a current recording is unavailable, the player identifies and uses the Mac system voice as a fallback. It supports pause, resume, and stop and ends automatically when you change lessons or leave class mode.
+10. Play each highlighted note or complete chord voicing with a MIDI keyboard or the on-screen five-octave piano. Chord prompts also provide **Play shown chord** for hardware-free practice.
+11. Select the instrument icon beneath the output meter to choose a grand piano, electric piano, synth lead, or synth pad. The selection is saved and applies to live playing, demonstrations, and loops.
+12. Use **Previous** and **Next** at the bottom of the class guide, or open the chapter menu to jump directly to any lesson in the current chapter.
+13. Completing a pass shows a compact inline result strip without covering the staff or piano. Choose **Practise again**, start **Loop with metronome** for automatically repeated scored passes aligned to beat one, or continue to the next lesson only when comfortable. Lesson records are saved automatically: entry marks a lesson **Introduced**, one completion marks it **Practised**, and three completions with a best accuracy of at least 90% mark it **Mastered**.
+14. A practice-day rhythm updates only on meaningful lesson completion. It, completion sounds, and animated celebrations can each be disabled in Settings; macOS Reduce Motion also suppresses energetic celebration motion.
+15. Open **Settings** to change the learning profile, replay onboarding, configure game-feel preferences, or choose the full-key colors used for expected and pressed/preview notes.
+16. Open **MIDI Lab** to select a device, inspect normalized events, or recover from a stuck note with **Panic**. Once connected, the lab shows a clean, read-only five-octave keyboard that mirrors incoming note presses without lesson markings or computer-key labels.
 
 The sampler first looks for a bundled `Piano.sf2`. Until a licensed SoundFont is added, it uses the system General MIDI bank when available. Do not commit a third-party SoundFont without confirming redistribution rights.
 
@@ -152,6 +154,11 @@ Implemented:
 - Correct/incorrect validation, streak, mistakes, and lesson progress
 - A three-stage Jazz Course with 12 modules and 36 playable lessons
 - Persistent per-lesson completion progress
+- Interactive first-run onboarding with goal, experience, optional MIDI setup, and a playable first feedback moment
+- Persistent Introduced/Practised/Mastered lesson records, accuracy personal bests, completion results, milestones, and meaningful practice-day rhythm
+- Non-modal pass results with manual repeat, next-lesson control, and beat-one-aligned scored practice looping
+- A side-profile grand-piano-and-player mark used for the app icon, onboarding identity, and navigation lockup
+- Restrained, Reduce-Motion-aware completion animation and an optional dedicated high-register chime sequence
 - Card-based course catalog with a Classical-course placeholder
 - Collapsible Jazz chapters with saved completion ticks
 - Lesson-aware treble, bass, or grand-staff notation
@@ -162,7 +169,7 @@ Implemented:
 - Content-addressed studio narration with incremental generation and a safe system-voice fallback
 - One exercise-playback button with an adjacent cycle-mode toggle for continuous, bar-aligned practice loops, persisted tempo, and synchronized staff/piano highlighting
 - Stop-only Space shortcut for active demonstration or loop playback
-- Silently armed metronome with independent volume, accented downbeats, common time signatures, and clicks restricted to exercise playback
+- Silently armed metronome with independent volume, accented downbeats, common time signatures, and clicks restricted to exercise playback or explicit scored practice looping
 - Persistent practice-instrument menu with multiple grand pianos, electric pianos, synth leads, and synth pads from compatible SF2/DLS banks
 - In-class Previous/Next navigation and a current-chapter lesson picker with completion status
 - A consistent studio-blue accent throughout the app, paired with a neutral graphite Practice workspace, Logic-inspired panel shading, thin section separators, compact control surfaces, and contextual Quick Help
@@ -172,7 +179,7 @@ Implemented:
 Next milestones:
 
 1. Bundle a licensed piano SoundFont and add audio-device selection.
-2. Persist profiles, settings, and detailed lesson attempts with SwiftData.
+2. Migrate the current local profile and mastery records from UserDefaults to SwiftData when multi-profile support is introduced.
 3. Add simultaneous chord validation, timing windows, and deterministic lesson generation in Rust.
 4. Import Standard MIDI Files into the canonical tick-based timeline.
 5. Add count-in, loop-range selection, and 50/75/100% practice tempo presets.

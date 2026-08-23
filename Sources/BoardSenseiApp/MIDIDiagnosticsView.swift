@@ -18,6 +18,13 @@ struct MIDIDiagnosticsView: View {
             }
             .padding(24)
 
+            if model.selectedDeviceID != nil {
+                MIDIControllerKeyboardView()
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
+                    .transition(.opacity)
+            }
+
             HSplitView {
                 deviceList.frame(minWidth: 280)
                 eventLog.frame(minWidth: 420)

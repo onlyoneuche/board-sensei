@@ -8,8 +8,16 @@ struct CoursesView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
-                    Text("Practice Courses")
-                        .font(.system(size: 32, weight: .semibold))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Practice Courses")
+                            .font(.system(size: 32, weight: .semibold))
+                        Spacer()
+                        if model.practiceStreaksEnabled, model.practiceDayStreak > 0 {
+                            Label("\(model.practiceDayStreak)-day practice rhythm", systemImage: "flame.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.orange)
+                        }
+                    }
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 22)], spacing: 22) {
                         NavigationLink {
@@ -132,8 +140,10 @@ private struct CourseCatalogCard: View {
 
 private struct JazzCourseView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedLevel: CourseLevel = .beginner
     @State private var expandedModuleIDs: Set<String> = [JazzCourseCatalog.beginner.modules[0].id]
+    @State private var appliedLearnerStartingPoint = false
 
     private let course = JazzCourseCatalog.course
 
@@ -149,6 +159,7 @@ private struct JazzCourseView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 courseHeader
+                learningSummary
                 stagePicker
                 stageProgress
                 ForEach(Array(stage.modules.enumerated()), id: \.element.id) { index, module in
@@ -161,6 +172,12 @@ private struct JazzCourseView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .navigationTitle("Jazz Course")
+        .onAppear {
+            guard !appliedLearnerStartingPoint else { return }
+            selectedLevel = preferredCourseLevel
+            expandedModuleIDs = Set(stage.modules.first.map { [$0.id] } ?? [])
+            appliedLearnerStartingPoint = true
+        }
         .onChange(of: selectedLevel) { _, _ in
             expandedModuleIDs = Set(stage.modules.first.map { [$0.id] } ?? [])
         }
@@ -202,11 +219,46 @@ private struct JazzCourseView: View {
             ProgressView(value: Double(completedCount), total: Double(stage.lessonCount))
                 .tint(levelColor)
             Spacer()
-            Text("\(completedCount)/\(stage.lessonCount) complete")
+            Text("\(completedCount)/\(stage.lessonCount) complete · \(masteredCount) mastered")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .help(selectedLevel.summary)
+    }
+
+    private var masteredCount: Int {
+        stage.modules
+            .flatMap(\.lessons)
+            .filter { model.mastery(for: $0) == .mastered }
+            .count
+    }
+
+    private var learningSummary: some View {
+        HStack(spacing: 18) {
+            summaryMetric("Practised", value: "\(model.completedLessonIDs.count)", symbol: "checkmark.circle.fill")
+            Divider().frame(height: 38)
+            summaryMetric(
+                "Mastered",
+                value: "\(model.lessonRecords.values.filter { $0.mastery == .mastered }.count)",
+                symbol: "seal.fill"
+            )
+            Divider().frame(height: 38)
+            summaryMetric("Milestones", value: "\(model.unlockedAchievements.count)", symbol: "flag.checkered")
+            Spacer()
+        }
+        .padding(16)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func summaryMetric(_ title: String, value: String, symbol: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: symbol).foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value).font(.headline.monospacedDigit())
+                Text(title).font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func moduleDisclosure(_ module: CourseModule, number: Int) -> some View {
@@ -214,7 +266,7 @@ private struct JazzCourseView: View {
 
         return VStack(spacing: 0) {
             Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
                     if isExpanded { expandedModuleIDs.remove(module.id) }
                     else { expandedModuleIDs.insert(module.id) }
                 }
@@ -266,14 +318,20 @@ private struct JazzCourseView: View {
     }
 
     private func lessonRow(_ lesson: PracticeLesson, number: Int) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: model.isCompleted(lesson) ? "checkmark.circle.fill" : "circle")
+        let mastery = model.mastery(for: lesson)
+        return HStack(spacing: 14) {
+            Image(systemName: lessonSymbol(mastery))
                 .font(.title2)
-                .foregroundStyle(model.isCompleted(lesson) ? Color.green : levelColor.opacity(0.65))
+                .foregroundStyle(lessonColor(mastery))
                 .frame(width: 32)
-                .accessibilityLabel(model.isCompleted(lesson) ? "Completed" : "Not completed")
+                .accessibilityLabel(mastery?.title ?? "Not started")
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(number). \(lesson.title)").font(.headline)
+                if let mastery {
+                    Text(mastery.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Label("\(lesson.estimatedMinutes) min", systemImage: "clock")
@@ -288,7 +346,33 @@ private struct JazzCourseView: View {
         .help(lesson.objective)
     }
 
+    private func lessonSymbol(_ mastery: LessonMastery?) -> String {
+        switch mastery {
+        case .introduced: "circle.dotted"
+        case .practiced: "checkmark.circle.fill"
+        case .mastered: "seal.fill"
+        case nil: "circle"
+        }
+    }
+
+    private func lessonColor(_ mastery: LessonMastery?) -> Color {
+        switch mastery {
+        case .introduced: levelColor.opacity(0.72)
+        case .practiced: .green
+        case .mastered: AppTheme.accent
+        case nil: levelColor.opacity(0.48)
+        }
+    }
+
     private var levelColor: Color {
         AppTheme.accent
+    }
+
+    private var preferredCourseLevel: CourseLevel {
+        switch model.learnerExperience {
+        case .beginner: .beginner
+        case .intermediate: .intermediate
+        case .advanced: .advanced
+        }
     }
 }
