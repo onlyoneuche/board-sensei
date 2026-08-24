@@ -69,6 +69,7 @@ struct PianoKeyboardView: View {
             key: key,
             isActive: model.activeNotes.contains(key.note) || model.previewPitches.contains(key.note),
             isExpected: model.displayedPitches.contains(key.note),
+            fingering: model.displayedFingerings.first { $0.pitch == key.note },
             expectedIndicatorColor: KeyboardIndicatorPreferences.color(
                 from: expectedIndicatorHex,
                 fallback: KeyboardIndicatorPreferences.defaultExpectedHex
@@ -243,6 +244,7 @@ private struct PianoKeyView: View {
     let key: PianoKey
     let isActive: Bool
     let isExpected: Bool
+    let fingering: PracticeFingering?
     let expectedIndicatorColor: Color
     let activeIndicatorColor: Color
     let onPress: () -> Void
@@ -264,6 +266,10 @@ private struct PianoKeyView: View {
                     Image(systemName: isActive ? "circle.inset.filled" : "scope")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(labelColor)
+                }
+                if isExpected, let fingering {
+                    Text("\(fingering.hand.abbreviatedName) \(fingering.finger)")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
                 }
                 if shouldShowNoteName {
                     Text(noteName(key.note)).font(.system(size: 9, weight: .bold))
@@ -302,13 +308,20 @@ private struct PianoKeyView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(noteName(key.note))\(key.shortcut.map { ", computer key \($0)" } ?? "")")
-        .accessibilityValue(isActive ? "Pressed" : isExpected ? "Expected note" : "Not pressed")
+        .accessibilityValue(keyAccessibilityValue)
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onAccessibleActivate() }
     }
 
     private var keyShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: key.isBlack ? 5 : 4)
+    }
+
+    private var keyAccessibilityValue: String {
+        let fingerValue = fingering.map { ", \($0.hand.abbreviatedName) finger \($0.finger)" } ?? ""
+        if isActive { return "Pressed\(isExpected ? ", expected note\(fingerValue)" : "")" }
+        if isExpected { return "Expected note\(fingerValue)" }
+        return "Not pressed"
     }
 
     private var keyFillColor: Color {

@@ -5,6 +5,7 @@ import SwiftUI
 
 struct PracticeStaffView: View {
     let expectedPitches: [UInt8]
+    let fingerings: [PracticeFingering]
     let feedback: PracticeFeedback
     let layout: NotationStaffLayout
     let reduceMotion: Bool
@@ -16,12 +17,13 @@ struct PracticeStaffView: View {
             .overlay { RoundedRectangle(cornerRadius: 7).stroke(PracticeTheme.separator, lineWidth: 1) }
             .onAppear { updateScene() }
             .onChange(of: expectedPitches) { _, _ in updateScene() }
+            .onChange(of: fingerings) { _, _ in updateScene() }
             .onChange(of: feedback) { _, _ in updateScene() }
             .onChange(of: layout) { _, _ in updateScene() }
             .onChange(of: reduceMotion) { _, _ in updateScene() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityStaffName)
-            .accessibilityValue("Expected \(expectedPitches.map(noteName).joined(separator: " plus ")). \(feedback.title).")
+            .accessibilityValue(accessibilityValue)
     }
 
     private var accessibilityStaffName: String {
@@ -33,7 +35,20 @@ struct PracticeStaffView: View {
     }
 
     private func updateScene() {
-        scene.show(pitches: expectedPitches, feedback: feedback, layout: layout, reduceMotion: reduceMotion)
+        scene.show(
+            pitches: expectedPitches,
+            fingerings: fingerings,
+            feedback: feedback,
+            layout: layout,
+            reduceMotion: reduceMotion
+        )
+    }
+
+    private var accessibilityValue: String {
+        let notes = expectedPitches.map(noteName).joined(separator: " plus ")
+        let fingers = fingerings.map { "\($0.hand.abbreviatedName) finger \($0.finger) on \(noteName($0.pitch))" }
+            .joined(separator: ", ")
+        return "Expected \(notes). \(fingers). \(feedback.title)."
     }
 }
 
@@ -48,6 +63,7 @@ final class PracticeStaffScene: SKScene {
 
     private let content = SKNode()
     private var pitches: [UInt8] = [60]
+    private var fingerings: [PracticeFingering] = []
     private var feedback: PracticeFeedback = .waiting
     private var layout: NotationStaffLayout = .treble
     private var reduceMotion = false
@@ -73,12 +89,14 @@ final class PracticeStaffScene: SKScene {
 
     func show(
         pitches: [UInt8],
+        fingerings: [PracticeFingering],
         feedback: PracticeFeedback,
         layout: NotationStaffLayout,
         reduceMotion: Bool
     ) {
         let feedbackChanged = self.feedback != feedback
         self.pitches = pitches
+        self.fingerings = fingerings
         self.feedback = feedback
         self.layout = layout
         self.reduceMotion = reduceMotion
@@ -105,12 +123,21 @@ final class PracticeStaffScene: SKScene {
             drawGrandStaff(animateFeedback: animateFeedback)
         }
 
-        let label = SKLabelNode(text: pitches.map(noteName).joined(separator: " + "))
+        let label = SKLabelNode(text: promptLabel)
         label.fontName = NSFont.systemFont(ofSize: 18, weight: .semibold).fontName
         label.fontSize = 18
         label.fontColor = .secondaryLabelColor
         label.position = CGPoint(x: size.width * 0.58, y: max(18, size.height * 0.07))
         content.addChild(label)
+    }
+
+    private var promptLabel: String {
+        pitches.map { pitch in
+            let fingering = fingerings.first { $0.pitch == pitch }
+            let suffix = fingering.map { " (\($0.hand.abbreviatedName) \($0.finger))" } ?? ""
+            return "\(noteName(pitch))\(suffix)"
+        }
+        .joined(separator: " + ")
     }
 
     private func drawGrandStaff(animateFeedback: Bool) {
@@ -189,6 +216,20 @@ final class PracticeStaffScene: SKScene {
             noteHead.addChild(stem)
 
             addLedgerLines(step: step, x: noteHead.position.x, bottomLineY: bottomLineY, spacing: lineSpacing)
+
+            if let fingering = fingerings.first(where: { $0.pitch == pitch }) {
+                let fingerLabel = SKLabelNode(text: String(fingering.finger))
+                fingerLabel.fontName = NSFont.systemFont(ofSize: 16, weight: .bold).fontName
+                fingerLabel.fontSize = 16
+                fingerLabel.fontColor = .labelColor
+                fingerLabel.horizontalAlignmentMode = .center
+                fingerLabel.verticalAlignmentMode = .center
+                fingerLabel.position = CGPoint(
+                    x: noteHead.position.x,
+                    y: noteY + (fingering.hand == .right ? lineSpacing * 1.35 : -lineSpacing * 1.35)
+                )
+                content.addChild(fingerLabel)
+            }
 
             if animateFeedback && !reduceMotion {
                 noteHead.setScale(0.72)

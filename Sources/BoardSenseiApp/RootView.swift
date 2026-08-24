@@ -244,7 +244,9 @@ private struct LessonGuideSidebar: View {
                                 model.toggleExercisePreview()
                             } label: {
                                 Label(
-                                    model.isPreviewPlaying ? "Stop exercise" : "Hear full exercise",
+                                    model.isPreviewPlaying
+                                        ? "Stop exercise"
+                                        : (model.isFocusedPracticeSelection ? "Hear selection" : "Hear full exercise"),
                                     systemImage: model.isPreviewPlaying ? "stop.fill" : "play.fill"
                                 )
                                 .frame(maxWidth: .infinity)
@@ -287,6 +289,74 @@ private struct LessonGuideSidebar: View {
                         )
                         .accessibilityLabel("Exercise preview tempo")
                         .accessibilityValue("\(model.previewTempoBPM) beats per minute")
+
+                        if model.activeLesson.scoreMetadata != nil {
+                            Divider()
+
+                            Picker("Hands", selection: Binding(
+                                get: { model.practiceHandMode },
+                                set: { mode in model.setPracticeHandMode(mode) }
+                            )) {
+                                ForEach(PracticeHandMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .accessibilityLabel("Practice hands")
+
+                            HStack(spacing: 8) {
+                                Menu("From m. \(model.practiceStartMeasure)") {
+                                    ForEach(1...model.activeLessonMeasureCount, id: \.self) { measure in
+                                        Button("Measure \(measure)") {
+                                            model.setPracticeMeasureRange(
+                                                start: measure,
+                                                end: max(measure, model.practiceEndMeasure)
+                                            )
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+
+                                Menu("To m. \(model.practiceEndMeasure)") {
+                                    ForEach(model.practiceStartMeasure...model.activeLessonMeasureCount, id: \.self) { measure in
+                                        Button("Measure \(measure)") {
+                                            model.setPracticeMeasureRange(
+                                                start: model.practiceStartMeasure,
+                                                end: measure
+                                            )
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .menuStyle(.borderlessButton)
+
+                            Toggle(
+                                "Raise tempo after ≥90% pass",
+                                isOn: Binding(
+                                    get: { model.automaticTempoProgressionEnabled },
+                                    set: { enabled in model.setAutomaticTempoProgressionEnabled(enabled) }
+                                )
+                            )
+                            .toggleStyle(.switch)
+                            .font(.caption)
+
+                            if model.automaticTempoProgressionEnabled {
+                                Stepper(
+                                    "Tempo step: +\(model.automaticTempoStep) BPM",
+                                    value: Binding(
+                                        get: { model.automaticTempoStep },
+                                        set: { step in model.setAutomaticTempoStep(step) }
+                                    ),
+                                    in: 1...10
+                                )
+                                .font(.caption.monospacedDigit())
+                            }
+
+                            Text("Measures \(model.practiceStartMeasure)–\(model.practiceEndMeasure) · \(model.practiceHandMode.rawValue) · \(model.practicePromptCount) prompts")
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(12)
                     .background(PracticeTheme.inset, in: RoundedRectangle(cornerRadius: 5))
@@ -296,7 +366,7 @@ private struct LessonGuideSidebar: View {
                     }
                     .quickHelp(
                         "Exercise playback",
-                        "Play one complete demonstration. Enable the repeat button to cycle the demonstration; scored practice looping is offered after a completed pass."
+                        "Choose a measure range and one or both hands, set the starting BPM, and optionally raise tempo after passes at 90 percent accuracy or better. The repeat button cycles the selected demonstration."
                     )
                 }
 
@@ -322,17 +392,42 @@ private struct LessonGuideSidebar: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                guideSection("Lesson route", symbol: "list.number") {
-                    ForEach(Array(model.activeLesson.prompts.enumerated()), id: \.offset) { index, prompt in
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Image(systemName: routeSymbol(at: index))
-                                .foregroundStyle(routeColor(at: index))
-                            Text(prompt.pitches.map(noteName).joined(separator: " + "))
-                                .font(.caption.monospaced())
+                guideSection("Full score & fingerings", symbol: "music.note.list") {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 124), spacing: 8)], spacing: 8) {
+                        ForEach(Array(model.activeLesson.prompts.enumerated()), id: \.offset) { index, prompt in
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: routeSymbol(at: index))
+                                        .foregroundStyle(routeColor(at: index))
+                                    Text("\(index + 1)")
+                                        .font(.caption2.bold().monospacedDigit())
+                                    Spacer(minLength: 0)
+                                }
+                                Text(prompt.pitches.map(noteName).joined(separator: " + "))
+                                    .font(.caption.monospaced().bold())
+                                if !prompt.fingerings.isEmpty {
+                                    Text(fingeringLabel(for: prompt))
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                routeColor(at: index).opacity(index == activeRouteIndex ? 0.16 : 0.06),
+                                in: RoundedRectangle(cornerRadius: 5)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(routeColor(at: index).opacity(0.35), lineWidth: 1)
+                            }
                         }
                     }
                 }
-                .quickHelp("Lesson route", "Shows prompt order, completed prompts, and the currently playing preview prompt.")
+                .quickHelp(
+                    "Full score and fingerings",
+                    "Shows the complete exercise in playing order. LH and RH identify the hand; fingers are numbered 1 for thumb through 5 for little finger."
+                )
 
                 Label(model.activeLesson.chapterLabel, systemImage: "text.book.closed")
                     .font(.caption)
@@ -425,12 +520,22 @@ private struct LessonGuideSidebar: View {
 
     private func routeSymbol(at index: Int) -> String {
         if model.isPreviewPlaying && model.previewPromptIndex == index { return "speaker.wave.2.fill" }
-        return index < model.completedNotes ? "checkmark.circle.fill" : "circle"
+        return model.completedSourcePromptIndices.contains(index) ? "checkmark.circle.fill" : "circle"
     }
 
     private func routeColor(at index: Int) -> Color {
         if model.isPreviewPlaying && model.previewPromptIndex == index { return PracticeTheme.accent }
-        return index < model.completedNotes ? .green : .secondary
+        return model.completedSourcePromptIndices.contains(index) ? .green : .secondary
+    }
+
+    private var activeRouteIndex: Int {
+        model.previewPromptIndex ?? model.currentSourcePromptIndex
+    }
+
+    private func fingeringLabel(for prompt: PracticePrompt) -> String {
+        prompt.fingerings
+            .map { "\($0.hand.abbreviatedName) \($0.finger): \(noteName($0.pitch))" }
+            .joined(separator: "  ")
     }
 
     private func chapterLessonMenu(_ navigation: CourseLessonNavigation) -> some View {
@@ -451,7 +556,7 @@ private struct LessonGuideSidebar: View {
         } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(navigation.level.rawValue.uppercased()) · CHAPTER \(navigation.chapterNumber)")
+                    Text("\(navigation.stageTitle.uppercased()) · CHAPTER \(navigation.chapterNumber)")
                         .font(.caption2.bold())
                         .foregroundStyle(PracticeTheme.accent)
                     Text(navigation.chapterTitle)

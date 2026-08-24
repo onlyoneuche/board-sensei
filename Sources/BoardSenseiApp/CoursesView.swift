@@ -21,29 +21,42 @@ struct CoursesView: View {
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 22)], spacing: 22) {
                         NavigationLink {
-                            JazzCourseView()
+                            CourseDetailView(
+                                course: JazzCourseCatalog.course,
+                                symbol: "music.quarternote.3",
+                                usesLearnerStartingPoint: true
+                            )
                         } label: {
                             CourseCatalogCard(
                                 title: "Jazz",
                                 subtitle: "Harmony, voicings, improvisation, and comping",
                                 symbol: "music.quarternote.3",
                                 color: AppTheme.accent,
-                                progress: jazzProgress,
+                                progress: progress(for: JazzCourseCatalog.course),
                                 detail: "36 lessons · 3 levels",
                                 isAvailable: true
                             )
                         }
                         .buttonStyle(.plain)
 
-                        CourseCatalogCard(
-                            title: "Classical",
-                            subtitle: "Technique, repertoire, reading, and interpretation",
-                            symbol: "music.note",
-                            color: .teal,
-                            progress: 0,
-                            detail: "Coming soon",
-                            isAvailable: false
-                        )
+                        NavigationLink {
+                            CourseDetailView(
+                                course: HanonCourseCatalog.course,
+                                symbol: "figure.strengthtraining.traditional",
+                                usesLearnerStartingPoint: false
+                            )
+                        } label: {
+                            CourseCatalogCard(
+                                title: "Hanon Technique",
+                                subtitle: "Finger independence, scales, arpeggios, trills, and octaves",
+                                symbol: "figure.strengthtraining.traditional",
+                                color: AppTheme.accent,
+                                progress: progress(for: HanonCourseCatalog.course),
+                                detail: "20 verified lessons · Part I",
+                                isAvailable: true
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(32)
@@ -55,14 +68,12 @@ struct CoursesView: View {
         }
     }
 
-    private var jazzProgress: Double {
-        guard JazzCourseCatalog.course.lessonCount > 0 else { return 0 }
-        let completed = JazzCourseCatalog.course.stages
-            .flatMap(\.modules)
-            .flatMap(\.lessons)
+    private func progress(for course: PracticeCourse) -> Double {
+        guard course.lessonCount > 0 else { return 0 }
+        let completed = course.lessons
             .filter(model.isCompleted)
             .count
-        return Double(completed) / Double(JazzCourseCatalog.course.lessonCount)
+        return Double(completed) / Double(course.lessonCount)
     }
 }
 
@@ -138,14 +149,16 @@ private struct CourseCatalogCard: View {
     }
 }
 
-private struct JazzCourseView: View {
+private struct CourseDetailView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedLevel: CourseLevel = .beginner
-    @State private var expandedModuleIDs: Set<String> = [JazzCourseCatalog.beginner.modules[0].id]
+    @State private var expandedModuleIDs: Set<String> = []
     @State private var appliedLearnerStartingPoint = false
 
-    private let course = JazzCourseCatalog.course
+    let course: PracticeCourse
+    let symbol: String
+    let usesLearnerStartingPoint: Bool
 
     private var stage: CourseStage {
         course.stages.first { $0.level == selectedLevel } ?? course.stages[0]
@@ -171,10 +184,10 @@ private struct JazzCourseView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
-        .navigationTitle("Jazz Course")
+        .navigationTitle(course.title)
         .onAppear {
             guard !appliedLearnerStartingPoint else { return }
-            selectedLevel = preferredCourseLevel
+            selectedLevel = usesLearnerStartingPoint ? preferredCourseLevel : (course.stages.first?.level ?? .beginner)
             expandedModuleIDs = Set(stage.modules.first.map { [$0.id] } ?? [])
             appliedLearnerStartingPoint = true
         }
@@ -185,7 +198,7 @@ private struct JazzCourseView: View {
 
     private var courseHeader: some View {
         HStack(alignment: .top, spacing: 22) {
-            Image(systemName: "music.quarternote.3")
+            Image(systemName: symbol)
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 72, height: 72)
@@ -205,13 +218,13 @@ private struct JazzCourseView: View {
 
     private var stagePicker: some View {
         Picker("Course level", selection: $selectedLevel) {
-            ForEach(CourseLevel.allCases) { level in
-                Text(level.rawValue).tag(level)
+            ForEach(course.stages) { stage in
+                Text(stage.title).tag(stage.level)
             }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .accessibilityLabel("Jazz course level")
+        .accessibilityLabel("\(course.title) part")
     }
 
     private var stageProgress: some View {
@@ -223,7 +236,7 @@ private struct JazzCourseView: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
-        .help(selectedLevel.summary)
+        .help(stage.summary)
     }
 
     private var masteredCount: Int {
