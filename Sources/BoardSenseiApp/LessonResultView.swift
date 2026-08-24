@@ -19,12 +19,15 @@ struct LessonCompletionPanel: View {
                     .scaleEffect(revealed ? 1 : 0.82)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(model.isPracticeLoopActive ? "Pass complete · practice loop active" : "Pass complete")
+                    Text(completionTitle)
                         .font(.headline)
                     HStack(spacing: 12) {
                         Text(result.accuracy.formatted(.percent.precision(.fractionLength(0))) + " accuracy")
                         Text("\(result.mistakes) mistakes")
                         Text(result.mastery.title)
+                        if model.automaticTempoProgressionEnabled, result.accuracy >= 0.9 {
+                            Text("Next: \(model.previewTempoBPM) BPM")
+                        }
                     }
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -117,5 +120,10 @@ struct LessonCompletionPanel: View {
         case .practiced: "checkmark.circle.fill"
         case .mastered: "seal.fill"
         }
+    }
+
+    private var completionTitle: String {
+        let pass = model.isFocusedPracticeSelection ? "Selection complete" : "Pass complete"
+        return model.isPracticeLoopActive ? "\(pass) · practice loop active" : pass
     }
 }

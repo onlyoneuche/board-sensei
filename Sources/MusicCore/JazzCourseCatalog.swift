@@ -82,29 +82,11 @@ public enum JazzCourseCatalog {
     }
 
     public static func lesson(id: String) -> PracticeLesson? {
-        course.stages
-            .flatMap(\.modules)
-            .flatMap(\.lessons)
-            .first { $0.id == id }
+        course.lesson(id: id)
     }
 
     public static func navigation(forLessonID id: String) -> CourseLessonNavigation? {
-        let orderedLessons = course.stages.flatMap(\.modules).flatMap(\.lessons)
-        guard let globalIndex = orderedLessons.firstIndex(where: { $0.id == id }) else { return nil }
-
-        for stage in course.stages {
-            for (chapterIndex, module) in stage.modules.enumerated() where module.lessons.contains(where: { $0.id == id }) {
-                return CourseLessonNavigation(
-                    level: stage.level,
-                    chapterNumber: chapterIndex + 1,
-                    chapterTitle: module.title,
-                    chapterLessons: module.lessons,
-                    previousLesson: globalIndex > orderedLessons.startIndex ? orderedLessons[globalIndex - 1] : nil,
-                    nextLesson: globalIndex < orderedLessons.index(before: orderedLessons.endIndex) ? orderedLessons[globalIndex + 1] : nil
-                )
-            }
-        }
-        return nil
+        course.navigation(forLessonID: id)
     }
 
     private static func module(_ id: String, _ title: String, _ summary: String, _ lessons: [PracticeLesson]) -> CourseModule {

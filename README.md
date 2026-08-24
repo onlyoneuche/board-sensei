@@ -2,7 +2,7 @@
 
 Board Sensei is a native macOS piano-practice trainer. It discovers a MIDI keyboard, normalizes incoming events, plays them through a local sampler, and validates notes and chord voicings against animated treble, bass, or grand-staff exercises.
 
-The current repository includes a 36-lesson Jazz Course, live MIDI diagnostics, audio monitoring, a SpriteKit staff, a canonical song model, and a Rust practice-engine ABI. The app remains usable without Rust installed by falling back to the small native bridge implementation.
+The current repository includes a 36-lesson Jazz Course, a verified 20-lesson Hanon Part I technique course, live MIDI diagnostics, audio monitoring, a SpriteKit staff, a canonical song model, and a Rust practice-engine ABI. The app remains usable without Rust installed by falling back to the small native bridge implementation.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ The script always runs Swift tests. It also runs Rust tests and Clippy when `car
 ## Using the app
 
 1. First launch opens a four-step onboarding flow: choose a practice goal and starting point, connect or skip a MIDI controller, then play middle C for an immediate first feedback moment. **Skip setup** remains available, and onboarding can be replayed later from Settings.
-2. Open **Courses** and select the **Jazz** card. The Classical card is a placeholder for a future course. Jazz initially opens at the level selected during onboarding, while every level remains freely available.
+2. Open **Courses** and select **Jazz** or **Hanon Technique**. Jazz initially opens at the level selected during onboarding, while Hanon currently contains the verified Part I exercises.
 3. Choose Beginner, Intermediate, or Advanced, expand a chapter, and select a lesson.
 4. The lesson opens directly in the unified class workspace. Its scrollable left guide contains the complete explanation, purpose, preparation plan, listening focus, success criterion, narration, exercise preview, and route while the staff and keyboard remain available on the right.
 5. Drag the divider between the guide and instrument workspace left or right to choose how much room each side receives.
@@ -117,6 +117,10 @@ The Jazz Course has three stages, each containing four modules and twelve short 
 - **Advanced:** altered harmony, advanced voicing movement, stride and bebop language, Latin-jazz cells, comping, and integrated improvisation practice.
 
 The curriculum map is based on the concepts and chapter progression in Mark Levine's *The Jazz Piano Book*. All lesson names, theory summaries, objectives, instructions, and playable exercises in the app are original teaching material. The book itself is not bundled or reproduced; learners should use their own lawful copy for the referenced reading.
+
+## Hanon Technique Course
+
+The Hanon course contains 20 self-contained Part I lessons. Each lesson presents the complete public-domain pitch route in a scrollable engraved 2/4 grand staff with sixteenth-note beams, barlines, repeat signs, written ending values, and explicit left- and right-hand finger numbers on every note. Exercise preview follows those values at quarter-note BPM, performs the repeated body twice, and then plays the written ending. No external score is required. The note routes were checked against the Mutopia Project's machine-readable Part I engraving, while render QA compares pitch contours, staff crossings, fingering, repeats, and endings with the supplied Schirmer pages; those page scans and editorial text are not bundled or reproduced. Parts II and III remain unavailable until their notes and fingerings can receive the same verification.
 
 ## Architecture
 
