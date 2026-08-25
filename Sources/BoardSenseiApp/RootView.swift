@@ -70,6 +70,9 @@ private struct PracticeSessionRootView: View {
                 .font(.headline)
                 .lineLimit(1)
             Spacer()
+            if model.supportsPracticeKeySelection {
+                JazzPracticeKeyControl()
+            }
             MetronomeTransportControls()
             Divider().frame(height: 22)
             navigationButton("Courses", symbol: "graduationcap.fill", destination: .courses)
@@ -94,6 +97,52 @@ private struct PracticeSessionRootView: View {
         }
         .buttonStyle(.borderless)
         .quickHelp(title, "Leave class mode and open \(title). Your lesson completion remains saved.")
+    }
+}
+
+private struct JazzPracticeKeyControl: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Menu {
+            ForEach(JazzPracticeKey.allCases) { key in
+                Button {
+                    model.setJazzPracticeKey(key)
+                } label: {
+                    if key == model.jazzPracticeKey {
+                        Label(key.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(key.displayName)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Text("KEY")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(model.jazzPracticeKey.displayName)
+                    .font(.caption.monospacedDigit().bold())
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(PracticeTheme.separator, lineWidth: 1)
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .accessibilityLabel("Jazz practice key")
+        .accessibilityValue(model.jazzPracticeKey.displayName)
+        .quickHelp(
+            "Practice key",
+            "Transpose the complete Jazz exercise, including its staff, piano targets, playback, route, and validation. Changing key starts a fresh pass."
+        )
     }
 }
 
@@ -287,6 +336,77 @@ private struct LessonGuideSidebar: View {
                         )
                         .accessibilityLabel("Exercise preview tempo")
                         .accessibilityValue("\(model.previewTempoBPM) beats per minute")
+<<<<<<< Updated upstream
+=======
+
+                        if model.practicePresentation == .hanonFullScore {
+                            Divider()
+
+                            Picker("Hands", selection: Binding(
+                                get: { model.practiceHandMode },
+                                set: { mode in model.setPracticeHandMode(mode) }
+                            )) {
+                                ForEach(PracticeHandMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .accessibilityLabel("Practice hands")
+
+                            HStack(spacing: 8) {
+                                Menu("From m. \(model.practiceStartMeasure)") {
+                                    ForEach(1...model.activeLessonMeasureCount, id: \.self) { measure in
+                                        Button("Measure \(measure)") {
+                                            model.setPracticeMeasureRange(
+                                                start: measure,
+                                                end: max(measure, model.practiceEndMeasure)
+                                            )
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+
+                                Menu("To m. \(model.practiceEndMeasure)") {
+                                    ForEach(model.practiceStartMeasure...model.activeLessonMeasureCount, id: \.self) { measure in
+                                        Button("Measure \(measure)") {
+                                            model.setPracticeMeasureRange(
+                                                start: model.practiceStartMeasure,
+                                                end: measure
+                                            )
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .menuStyle(.borderlessButton)
+
+                            Toggle(
+                                "Raise tempo after ≥90% pass",
+                                isOn: Binding(
+                                    get: { model.automaticTempoProgressionEnabled },
+                                    set: { enabled in model.setAutomaticTempoProgressionEnabled(enabled) }
+                                )
+                            )
+                            .toggleStyle(.switch)
+                            .font(.caption)
+
+                            if model.automaticTempoProgressionEnabled {
+                                Stepper(
+                                    "Tempo step: +\(model.automaticTempoStep) BPM",
+                                    value: Binding(
+                                        get: { model.automaticTempoStep },
+                                        set: { step in model.setAutomaticTempoStep(step) }
+                                    ),
+                                    in: 1...10
+                                )
+                                .font(.caption.monospacedDigit())
+                            }
+
+                            Text("Measures \(model.practiceStartMeasure)–\(model.practiceEndMeasure) · \(model.practiceHandMode.rawValue) · \(model.practicePromptCount) prompts")
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+>>>>>>> Stashed changes
                     }
                     .padding(12)
                     .background(PracticeTheme.inset, in: RoundedRectangle(cornerRadius: 5))
@@ -296,7 +416,13 @@ private struct LessonGuideSidebar: View {
                     }
                     .quickHelp(
                         "Exercise playback",
+<<<<<<< Updated upstream
                         "Play one complete demonstration. Enable the repeat button to cycle the demonstration; scored practice looping is offered after a completed pass."
+=======
+                        model.practicePresentation == .hanonFullScore
+                            ? "Choose a Hanon measure range and one or both hands, set the starting BPM, and optionally raise tempo after accurate passes."
+                            : "Set the Jazz exercise tempo and use the repeat button to cycle the complete melodic route or chord progression."
+>>>>>>> Stashed changes
                     )
                 }
 
@@ -322,6 +448,7 @@ private struct LessonGuideSidebar: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+<<<<<<< Updated upstream
                 guideSection("Lesson route", symbol: "list.number") {
                     ForEach(Array(model.activeLesson.prompts.enumerated()), id: \.offset) { index, prompt in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -329,10 +456,65 @@ private struct LessonGuideSidebar: View {
                                 .foregroundStyle(routeColor(at: index))
                             Text(prompt.pitches.map(noteName).joined(separator: " + "))
                                 .font(.caption.monospaced())
+=======
+                if model.practicePresentation == .hanonFullScore {
+                    guideSection("Full score & fingerings", symbol: "music.note.list") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 124), spacing: 8)], spacing: 8) {
+                            ForEach(Array(model.practiceRoutePrompts.enumerated()), id: \.offset) { index, prompt in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: routeSymbol(at: index))
+                                            .foregroundStyle(routeColor(at: index))
+                                        Text("\(index + 1)")
+                                            .font(.caption2.bold().monospacedDigit())
+                                        Spacer(minLength: 0)
+                                    }
+                                    Text(prompt.pitches.map(model.practiceNoteName).joined(separator: " + "))
+                                        .font(.caption.monospaced().bold())
+                                    if !prompt.fingerings.isEmpty {
+                                        Text(fingeringLabel(for: prompt))
+                                            .font(.caption2.monospaced())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    routeColor(at: index).opacity(index == activeRouteIndex ? 0.16 : 0.06),
+                                    in: RoundedRectangle(cornerRadius: 5)
+                                )
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(routeColor(at: index).opacity(0.35), lineWidth: 1)
+                                }
+                            }
+>>>>>>> Stashed changes
                         }
                     }
+                    .quickHelp(
+                        "Full score and fingerings",
+                        "Shows the complete Hanon exercise in playing order. LH and RH identify the hand; fingers are numbered 1 through 5."
+                    )
+                } else {
+                    guideSection("Lesson route", symbol: "list.number") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(Array(model.practiceRoutePrompts.enumerated()), id: \.offset) { index, prompt in
+                                HStack(spacing: 8) {
+                                    Image(systemName: routeSymbol(at: index))
+                                        .foregroundStyle(routeColor(at: index))
+                                    Text(prompt.pitches.map(model.practiceNoteName).joined(separator: " + "))
+                                        .font(.caption.monospaced())
+                                    Spacer()
+                                }
+                            }
+                        }
+                    }
+                    .quickHelp("Lesson route", "Shows the Jazz prompt order and the current melodic note or complete chord voicing.")
                 }
+<<<<<<< Updated upstream
                 .quickHelp("Lesson route", "Shows prompt order, completed prompts, and the currently playing preview prompt.")
+=======
+>>>>>>> Stashed changes
 
                 Label(model.activeLesson.chapterLabel, systemImage: "text.book.closed")
                     .font(.caption)
@@ -437,11 +619,11 @@ private struct LessonGuideSidebar: View {
         Menu {
             ForEach(navigation.chapterLessons) { lesson in
                 Button {
-                    model.startLesson(lesson)
+                    model.startLessonInActiveCourse(lesson)
                 } label: {
                     if lesson.id == model.activeLesson.id {
                         Label(lesson.title, systemImage: "location.fill")
-                    } else if model.isCompleted(lesson) {
+                    } else if model.isCompleted(lesson, in: model.activeCourseID) {
                         Label(lesson.title, systemImage: "checkmark.circle.fill")
                     } else {
                         Text(lesson.title)
@@ -516,7 +698,7 @@ private struct LessonGuideSidebar: View {
         iconAfterTitle: Bool = false
     ) -> some View {
         Button {
-            if let lesson { model.startLesson(lesson) }
+            if let lesson { model.startLessonInActiveCourse(lesson) }
         } label: {
             HStack(spacing: 6) {
                 if !iconAfterTitle { Image(systemName: symbol) }

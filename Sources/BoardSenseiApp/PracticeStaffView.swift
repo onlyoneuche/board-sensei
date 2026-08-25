@@ -7,6 +7,7 @@ struct PracticeStaffView: View {
     let expectedPitches: [UInt8]
     let feedback: PracticeFeedback
     let layout: NotationStaffLayout
+    let jazzPracticeKey: JazzPracticeKey
     let reduceMotion: Bool
     @State private var scene = PracticeStaffScene()
 
@@ -18,6 +19,7 @@ struct PracticeStaffView: View {
             .onChange(of: expectedPitches) { _, _ in updateScene() }
             .onChange(of: feedback) { _, _ in updateScene() }
             .onChange(of: layout) { _, _ in updateScene() }
+            .onChange(of: jazzPracticeKey) { _, _ in updateScene() }
             .onChange(of: reduceMotion) { _, _ in updateScene() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityStaffName)
@@ -33,7 +35,29 @@ struct PracticeStaffView: View {
     }
 
     private func updateScene() {
+<<<<<<< Updated upstream
         scene.show(pitches: expectedPitches, feedback: feedback, layout: layout, reduceMotion: reduceMotion)
+=======
+        scene.show(
+            pitches: expectedPitches,
+            fingerings: fingerings,
+            feedback: feedback,
+            layout: layout,
+            jazzPracticeKey: jazzPracticeKey,
+            reduceMotion: reduceMotion
+        )
+    }
+
+    private var accessibilityValue: String {
+        let notes = expectedPitches.map(displayName).joined(separator: " plus ")
+        let fingers = fingerings.map { "\($0.hand.abbreviatedName) finger \($0.finger) on \(displayName($0.pitch))" }
+            .joined(separator: ", ")
+        return "Expected \(notes). \(fingers). \(feedback.title)."
+>>>>>>> Stashed changes
+    }
+
+    private func displayName(_ pitch: UInt8) -> String {
+        jazzPracticeKey.noteName(for: pitch)
     }
 }
 
@@ -50,6 +74,7 @@ final class PracticeStaffScene: SKScene {
     private var pitches: [UInt8] = [60]
     private var feedback: PracticeFeedback = .waiting
     private var layout: NotationStaffLayout = .treble
+    private var jazzPracticeKey = JazzPracticeKey.c
     private var reduceMotion = false
 
     override init(size: CGSize = CGSize(width: 900, height: 420)) {
@@ -75,12 +100,14 @@ final class PracticeStaffScene: SKScene {
         pitches: [UInt8],
         feedback: PracticeFeedback,
         layout: NotationStaffLayout,
+        jazzPracticeKey: JazzPracticeKey,
         reduceMotion: Bool
     ) {
         let feedbackChanged = self.feedback != feedback
         self.pitches = pitches
         self.feedback = feedback
         self.layout = layout
+        self.jazzPracticeKey = jazzPracticeKey
         self.reduceMotion = reduceMotion
         render(animateFeedback: feedbackChanged)
     }
@@ -113,6 +140,18 @@ final class PracticeStaffScene: SKScene {
         content.addChild(label)
     }
 
+<<<<<<< Updated upstream
+=======
+    private var promptLabel: String {
+        pitches.map { pitch in
+            let fingering = fingerings.first { $0.pitch == pitch }
+            let suffix = fingering.map { " (\($0.hand.abbreviatedName) \($0.finger))" } ?? ""
+            return "\(jazzPracticeKey.noteName(for: pitch))\(suffix)"
+        }
+        .joined(separator: " + ")
+    }
+
+>>>>>>> Stashed changes
     private func drawGrandStaff(animateFeedback: Bool) {
         let trebleCenter = size.height * 0.69
         let bassCenter = size.height * 0.34
@@ -180,6 +219,21 @@ final class PracticeStaffScene: SKScene {
             noteHead.name = "expected-note"
             content.addChild(noteHead)
 
+            if isAccidental(pitch) {
+                let accidental = SKLabelNode(text: jazzPracticeKey.prefersFlats ? "♭" : "♯")
+                accidental.fontName = NSFont(name: "Times New Roman", size: lineSpacing * 1.35)?.fontName
+                    ?? NSFont.systemFont(ofSize: lineSpacing * 1.2).fontName
+                accidental.fontSize = lineSpacing * 1.35
+                accidental.fontColor = .labelColor
+                accidental.horizontalAlignmentMode = .center
+                accidental.verticalAlignmentMode = .center
+                accidental.position = CGPoint(
+                    x: noteHead.position.x - lineSpacing * 0.95,
+                    y: noteY
+                )
+                content.addChild(accidental)
+            }
+
             let stemPath = CGMutablePath()
             stemPath.move(to: CGPoint(x: lineSpacing * 0.58, y: 0))
             stemPath.addLine(to: CGPoint(x: lineSpacing * 0.58, y: lineSpacing * 3.1))
@@ -224,10 +278,19 @@ final class PracticeStaffScene: SKScene {
         let midi = Int(midiPitch)
         let octave = midi / 12 - 1
         let pitchClass = midi % 12
-        let naturalPitchClass = naturalSteps[pitchClass] != nil
-            ? pitchClass
-            : naturalSteps.keys.min(by: { abs($0 - pitchClass) < abs($1 - pitchClass) }) ?? 0
+        let naturalPitchClass: Int
+        if naturalSteps[pitchClass] != nil {
+            naturalPitchClass = pitchClass
+        } else if jazzPracticeKey.prefersFlats {
+            naturalPitchClass = [1: 2, 3: 4, 6: 7, 8: 9, 10: 11][pitchClass] ?? 0
+        } else {
+            naturalPitchClass = [1: 0, 3: 2, 6: 5, 8: 7, 10: 9][pitchClass] ?? 0
+        }
         return octave * 7 + (naturalSteps[naturalPitchClass] ?? 0)
+    }
+
+    private func isAccidental(_ pitch: UInt8) -> Bool {
+        [1, 3, 6, 8, 10].contains(Int(pitch) % 12)
     }
 
     private func addLedgerLines(step: Int, x: CGFloat, bottomLineY: CGFloat, spacing: CGFloat) {

@@ -4,7 +4,14 @@ public enum ValidationStatus: UInt8, Sendable, Equatable {
     case correct = 0
     case incorrect = 1
     case ignored = 2
+    case partial = 3
     case unavailable = 255
+}
+
+public enum PracticePromptValidationMode: UInt8, Sendable, Equatable {
+    case singleNote = 0
+    case exactHeldSet = 1
+    case freshAttackSet = 2
 }
 
 public struct ValidationResult: Sendable, Equatable {

@@ -7,23 +7,106 @@ struct CoursesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Practice Courses")
-                            .font(.system(size: 32, weight: .semibold))
-                        Spacer()
-                        if model.practiceStreaksEnabled, model.practiceDayStreak > 0 {
-                            Label("\(model.practiceDayStreak)-day practice rhythm", systemImage: "flame.fill")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.orange)
-                        }
-                    }
+                VStack(spacing: 34) {
+                    studioHero
+                    learningStatus
+                    courseShelf
+                }
+                .padding(.vertical, 34)
+                .frame(maxWidth: .infinity)
+            }
+            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+            .navigationTitle("Courses")
+        }
+    }
 
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 22)], spacing: 22) {
+    private var studioHero: some View {
+        VStack(spacing: 14) {
+            BoardSenseiMark(size: 156)
+                .shadow(color: .black.opacity(0.2), radius: 18, y: 9)
+
+            VStack(spacing: 5) {
+                Text("BOARD SENSEI")
+                    .font(.system(size: 24, weight: .bold))
+                    .tracking(1.2)
+                Text("Learn it. Hear it. Play it.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("Choose your practice path")
+                .font(.system(size: 34, weight: .semibold))
+                .padding(.top, 5)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var learningStatus: some View {
+        HStack(spacing: 10) {
+            if model.practiceStreaksEnabled {
+                statusChip(
+                    model.practiceDayStreak > 0 ? "\(model.practiceDayStreak)-day rhythm" : "Start a rhythm",
+                    symbol: "flame.fill",
+                    color: .orange,
+                    help: "Your practice rhythm advances on days when you complete a lesson."
+                )
+            }
+            statusChip(
+                "\(completedLessonCount) practised",
+                symbol: "checkmark.circle.fill",
+                color: .green,
+                help: "Lessons with at least one completed pass across every course."
+            )
+            statusChip(
+                "\(masteredLessonCount) mastered",
+                symbol: "seal.fill",
+                color: AppTheme.accent,
+                help: "Lessons mastered through accurate repetition."
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func statusChip(_ text: String, symbol: String, color: Color, help: String) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+            .overlay { Capsule().stroke(color.opacity(0.3), lineWidth: 1) }
+            .help(help)
+    }
+
+    private var courseShelf: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(height: 1)
+                Image(systemName: "arrow.left.and.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30, height: 24)
+                    .background(AppTheme.accent.opacity(0.1), in: Capsule())
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(height: 1)
+            }
+            .padding(.horizontal, 32)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Horizontally scrollable course shelf")
+
+            GeometryReader { geometry in
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 18) {
                         NavigationLink {
                             JazzCourseView()
                         } label: {
                             CourseCatalogCard(
+                                number: "01",
                                 title: "Jazz",
                                 subtitle: "Harmony, voicings, improvisation, and comping",
                                 symbol: "music.quarternote.3",
@@ -35,6 +118,7 @@ struct CoursesView: View {
                         }
                         .buttonStyle(.plain)
 
+<<<<<<< Updated upstream
                         CourseCatalogCard(
                             title: "Classical",
                             subtitle: "Technique, repertoire, reading, and interpretation",
@@ -42,31 +126,83 @@ struct CoursesView: View {
                             color: .teal,
                             progress: 0,
                             detail: "Coming soon",
+=======
+                        NavigationLink {
+                            CourseDetailView(
+                                course: HanonCourseCatalog.course,
+                                symbol: "figure.strengthtraining.traditional",
+                                usesLearnerStartingPoint: false
+                            )
+                        } label: {
+                            CourseCatalogCard(
+                                number: "02",
+                                title: "Hanon Technique",
+                                subtitle: "Finger independence, evenness, dexterity, and control",
+                                symbol: "figure.strengthtraining.traditional",
+                                color: AppTheme.accent,
+                                progress: progress(for: HanonCourseCatalog.course),
+                                detail: "20 verified lessons · Part I",
+                                isAvailable: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        CourseCatalogCard(
+                            number: "03",
+                            title: "Classical",
+                            subtitle: "Reading, repertoire, phrasing, and expressive technique",
+                            symbol: "music.note.list",
+                            color: AppTheme.accent,
+                            progress: 0,
+                            detail: "Curriculum in development",
+>>>>>>> Stashed changes
                             isAvailable: false
                         )
                     }
+                    .padding(.horizontal, max(32, (geometry.size.width - 1_212) / 2))
+                    .padding(.vertical, 3)
                 }
-                .padding(32)
-                .frame(maxWidth: 1_180)
-                .frame(maxWidth: .infinity, alignment: .top)
+                .scrollIndicators(.visible)
             }
-            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
-            .navigationTitle("Courses")
+            .frame(height: 336)
         }
     }
 
+    private var completedLessonCount: Int {
+        CourseLibrary.courses.reduce(0) { count, course in
+            count + course.lessons.filter { model.isCompleted($0, in: course.id) }.count
+        }
+    }
+
+    private var masteredLessonCount: Int {
+        CourseLibrary.courses.reduce(0) { count, course in
+            count + course.lessons.filter { model.mastery(for: $0, in: course.id) == .mastered }.count
+        }
+    }
+
+<<<<<<< Updated upstream
     private var jazzProgress: Double {
         guard JazzCourseCatalog.course.lessonCount > 0 else { return 0 }
         let completed = JazzCourseCatalog.course.stages
             .flatMap(\.modules)
             .flatMap(\.lessons)
             .filter(model.isCompleted)
+=======
+    private func progress(for course: PracticeCourse) -> Double {
+        guard course.lessonCount > 0 else { return 0 }
+        let completed = course.lessons
+            .filter { model.isCompleted($0, in: course.id) }
+>>>>>>> Stashed changes
             .count
         return Double(completed) / Double(JazzCourseCatalog.course.lessonCount)
     }
 }
 
 private struct CourseCatalogCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    let number: String
     let title: String
     let subtitle: String
     let symbol: String
@@ -76,28 +212,17 @@ private struct CourseCatalogCard: View {
     let isAvailable: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 Image(systemName: symbol)
-                    .font(.system(size: 34, weight: .semibold))
+                    .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 72, height: 72)
-                    .background(color, in: RoundedRectangle(cornerRadius: 16))
+                    .frame(width: 64, height: 64)
+                    .background(color, in: RoundedRectangle(cornerRadius: 14))
                 Spacer()
-                if isAvailable {
-                    Image(systemName: "arrow.up.right")
-                        .font(.headline)
-                        .foregroundStyle(color)
-                        .padding(10)
-                        .background(color.opacity(0.12), in: Circle())
-                } else {
-                    Text("COMING SOON")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.quaternary, in: Capsule())
-                }
+                Text(number)
+                    .font(.system(size: 34, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
             }
 
             VStack(alignment: .leading, spacing: 7) {
@@ -110,30 +235,65 @@ private struct CourseCatalogCard: View {
 
             Spacer(minLength: 0)
 
-            if isAvailable {
-                ProgressView(value: progress).tint(color)
-                HStack {
-                    Text(detail)
-                    Spacer()
-                    Text("\(Int(progress * 100))%")
-                }
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-            } else {
-                Label(detail, systemImage: "clock")
-                    .font(.subheadline)
+            Divider()
+
+            VStack(alignment: .leading, spacing: 9) {
+                if isAvailable {
+                    HStack {
+                        Text(detail)
+                        Spacer()
+                        Text("\(Int(progress * 100))%")
+                    }
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
+                    ProgressView(value: progress).tint(color)
+                } else {
+                    HStack {
+                        Label(detail, systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("COMING SOON")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack {
+                    Text(isAvailable ? (progress > 0 ? "CONTINUE" : "START") : "PLANNED")
+                        .font(.caption2.bold())
+                        .tracking(0.8)
+                    Spacer()
+                    Image(systemName: isAvailable ? "arrow.right" : "lock.fill")
+                        .font(.caption.bold())
+                }
+                .foregroundStyle(isAvailable ? color : Color.secondary)
             }
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .padding(22)
+        .frame(width: 392, height: 314, alignment: .topLeading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 22))
         .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(isAvailable ? color.opacity(0.38) : Color.secondary.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(
+                    isAvailable
+                        ? color.opacity(isHovering ? 0.72 : 0.42)
+                        : Color.secondary.opacity(0.2),
+                    lineWidth: isAvailable && isHovering ? 1.5 : 1
+                )
         }
-        .contentShape(RoundedRectangle(cornerRadius: 24))
+        .contentShape(RoundedRectangle(cornerRadius: 22))
         .opacity(isAvailable ? 1 : 0.72)
+        .scaleEffect(isAvailable && isHovering ? 1.012 : 1)
+        .shadow(
+            color: .black.opacity(isAvailable && isHovering ? 0.2 : 0.08),
+            radius: isAvailable && isHovering ? 14 : 5,
+            y: isAvailable && isHovering ? 7 : 3
+        )
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: isHovering)
+        .onHover { hovering in
+            isHovering = isAvailable && hovering
+        }
         .accessibilityElement(children: .combine)
     }
 }
@@ -152,7 +312,7 @@ private struct JazzCourseView: View {
     }
 
     private var completedCount: Int {
-        stage.modules.flatMap(\.lessons).filter(model.isCompleted).count
+        stage.modules.flatMap(\.lessons).filter { model.isCompleted($0, in: course.id) }.count
     }
 
     var body: some View {
@@ -229,17 +389,21 @@ private struct JazzCourseView: View {
     private var masteredCount: Int {
         stage.modules
             .flatMap(\.lessons)
-            .filter { model.mastery(for: $0) == .mastered }
+            .filter { model.mastery(for: $0, in: course.id) == .mastered }
             .count
     }
 
     private var learningSummary: some View {
         HStack(spacing: 18) {
-            summaryMetric("Practised", value: "\(model.completedLessonIDs.count)", symbol: "checkmark.circle.fill")
+            summaryMetric(
+                "Practised",
+                value: "\(course.lessons.filter { model.isCompleted($0, in: course.id) }.count)",
+                symbol: "checkmark.circle.fill"
+            )
             Divider().frame(height: 38)
             summaryMetric(
                 "Mastered",
-                value: "\(model.lessonRecords.values.filter { $0.mastery == .mastered }.count)",
+                value: "\(course.lessons.filter { model.mastery(for: $0, in: course.id) == .mastered }.count)",
                 symbol: "seal.fill"
             )
             Divider().frame(height: 38)
@@ -263,6 +427,7 @@ private struct JazzCourseView: View {
 
     private func moduleDisclosure(_ module: CourseModule, number: Int) -> some View {
         let isExpanded = expandedModuleIDs.contains(module.id)
+        let completedLessons = module.lessons.filter { model.isCompleted($0, in: course.id) }
 
         return VStack(spacing: 0) {
             Button {
@@ -285,11 +450,11 @@ private struct JazzCourseView: View {
                     }
                     Spacer()
                     Label(
-                        "\(module.lessons.filter(model.isCompleted).count)/\(module.lessons.count)",
-                        systemImage: module.lessons.allSatisfy(model.isCompleted) ? "checkmark.circle.fill" : "circle.dotted"
+                        "\(completedLessons.count)/\(module.lessons.count)",
+                        systemImage: completedLessons.count == module.lessons.count ? "checkmark.circle.fill" : "circle.dotted"
                     )
                     .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(module.lessons.allSatisfy(model.isCompleted) ? Color.green : Color.secondary)
+                    .foregroundStyle(completedLessons.count == module.lessons.count ? Color.green : Color.secondary)
                 }
                 .contentShape(Rectangle())
                 .padding(18)
@@ -304,7 +469,7 @@ private struct JazzCourseView: View {
                 Divider()
                 ForEach(Array(module.lessons.enumerated()), id: \.element.id) { index, lesson in
                     Button {
-                        model.startLesson(lesson)
+                        model.startLesson(course: course, lesson: lesson)
                     } label: {
                         lessonRow(lesson, number: index + 1)
                     }
@@ -318,7 +483,7 @@ private struct JazzCourseView: View {
     }
 
     private func lessonRow(_ lesson: PracticeLesson, number: Int) -> some View {
-        let mastery = model.mastery(for: lesson)
+        let mastery = model.mastery(for: lesson, in: course.id)
         return HStack(spacing: 14) {
             Image(systemName: lessonSymbol(mastery))
                 .font(.title2)
