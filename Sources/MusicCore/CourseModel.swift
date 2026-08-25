@@ -23,6 +23,66 @@ public enum NotationStaffLayout: String, Codable, Sendable, Equatable {
     case grand
 }
 
+public enum PracticeExperience: String, Codable, Sendable, Equatable {
+    case jazz
+    case hanonTechnique
+}
+
+public enum JazzPromptKind: String, Codable, Sendable, Equatable {
+    case melodic
+    case chord
+}
+
+public enum JazzPracticeKey: Int, CaseIterable, Codable, Sendable, Equatable, Identifiable {
+    case c = 0
+    case dFlat = 1
+    case d = 2
+    case eFlat = 3
+    case e = 4
+    case f = 5
+    case gFlat = 6
+    case g = 7
+    case aFlat = 8
+    case a = 9
+    case bFlat = 10
+    case b = 11
+
+    public var id: Self { self }
+    public var semitoneOffset: Int { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .c: "C"
+        case .dFlat: "D♭"
+        case .d: "D"
+        case .eFlat: "E♭"
+        case .e: "E"
+        case .f: "F"
+        case .gFlat: "G♭"
+        case .g: "G"
+        case .aFlat: "A♭"
+        case .a: "A"
+        case .bFlat: "B♭"
+        case .b: "B"
+        }
+    }
+
+    public var prefersFlats: Bool {
+        switch self {
+        case .dFlat, .eFlat, .f, .gFlat, .aFlat, .bFlat: true
+        case .c, .d, .e, .g, .a, .b: false
+        }
+    }
+
+    public func noteName(for midiPitch: UInt8) -> String {
+        let sharpNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        let flatNames = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"]
+        let pitch = Int(midiPitch)
+        let names = prefersFlats ? flatNames : sharpNames
+        return "\(names[pitch % 12])\((pitch / 12) - 1)"
+    }
+}
+
 public enum PianoHand: String, Codable, Sendable, Equatable, Hashable {
     case left
     case right
@@ -113,6 +173,48 @@ public struct PracticeScoreMetadata: Codable, Sendable, Equatable {
     }
 }
 
+public struct JazzExercise: Codable, Sendable, Equatable {
+    public let promptKind: JazzPromptKind
+    public let prompts: [PracticePrompt]
+
+    public init(promptKind: JazzPromptKind, prompts: [PracticePrompt]) {
+        precondition(!prompts.isEmpty, "A Jazz exercise needs at least one prompt")
+        self.promptKind = promptKind
+        self.prompts = prompts
+    }
+}
+
+public struct HanonExercise: Codable, Sendable, Equatable {
+    public let prompts: [PracticePrompt]
+    public let score: PracticeScoreMetadata
+
+    public init(prompts: [PracticePrompt], score: PracticeScoreMetadata) {
+        precondition(!prompts.isEmpty, "A Hanon exercise needs at least one prompt")
+        precondition(prompts.allSatisfy { !$0.fingerings.isEmpty }, "Every Hanon prompt needs fingering")
+        self.prompts = prompts
+        self.score = score
+    }
+}
+
+public enum PracticeExercise: Codable, Sendable, Equatable {
+    case jazz(JazzExercise)
+    case hanon(HanonExercise)
+
+    public var experience: PracticeExperience {
+        switch self {
+        case .jazz: .jazz
+        case .hanon: .hanonTechnique
+        }
+    }
+
+    public var prompts: [PracticePrompt] {
+        switch self {
+        case let .jazz(exercise): exercise.prompts
+        case let .hanon(exercise): exercise.prompts
+        }
+    }
+}
+
 public struct PracticePrompt: Codable, Sendable, Equatable {
     public let pitches: [UInt8]
     public let fingerings: [PracticeFingering]
@@ -156,6 +258,27 @@ public struct PracticePrompt: Codable, Sendable, Equatable {
             noteValue: noteValue
         )
     }
+
+    public func transposed(by semitones: Int) -> PracticePrompt {
+        func transposedPitch(_ pitch: UInt8) -> UInt8 {
+            let value = Int(pitch) + semitones
+            precondition((0...127).contains(value), "Transposed MIDI pitches must remain in range")
+            return UInt8(value)
+        }
+        let transposedPitches = pitches.map(transposedPitch)
+        let transposedFingerings = fingerings.map { fingering in
+            PracticeFingering(
+                pitch: transposedPitch(fingering.pitch),
+                hand: fingering.hand,
+                finger: fingering.finger
+            )
+        }
+        return PracticePrompt(
+            pitches: transposedPitches,
+            fingerings: transposedFingerings,
+            noteValue: noteValue
+        )
+    }
 }
 
 public struct PracticeLessonGuidance: Codable, Sendable, Equatable {
@@ -188,8 +311,7 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
     public let sourceChapters: [Int]
     public let sourceName: String
     public let guidance: PracticeLessonGuidance?
-    public let prompts: [PracticePrompt]
-    public let scoreMetadata: PracticeScoreMetadata?
+    public let exercise: PracticeExercise
     public let estimatedMinutes: Int
 
     public init(
@@ -203,7 +325,6 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         sourceName: String = "Chapter",
         guidance: PracticeLessonGuidance? = nil,
         pitches: [UInt8],
-        scoreMetadata: PracticeScoreMetadata? = nil,
         estimatedMinutes: Int = 5
     ) {
         precondition(!pitches.isEmpty, "A playable lesson needs at least one pitch")
@@ -217,8 +338,10 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         self.sourceChapters = sourceChapters
         self.sourceName = sourceName
         self.guidance = guidance
-        self.prompts = pitches.map { PracticePrompt(pitches: [$0]) }
-        self.scoreMetadata = scoreMetadata
+        self.exercise = .jazz(JazzExercise(
+            promptKind: .melodic,
+            prompts: pitches.map { PracticePrompt(pitches: [$0]) }
+        ))
         self.estimatedMinutes = estimatedMinutes
     }
 
@@ -234,7 +357,7 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         guidance: PracticeLessonGuidance? = nil,
         fingeredPrompts: [[PracticeFingering]],
         noteValues: [PracticeNoteValue]? = nil,
-        scoreMetadata: PracticeScoreMetadata? = nil,
+        scoreMetadata: PracticeScoreMetadata,
         estimatedMinutes: Int = 5
     ) {
         precondition(!fingeredPrompts.isEmpty, "A fingered lesson needs at least one prompt")
@@ -250,14 +373,14 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         self.sourceChapters = sourceChapters
         self.sourceName = sourceName
         self.guidance = guidance
-        self.prompts = fingeredPrompts.enumerated().map { index, marks in
+        let prompts = fingeredPrompts.enumerated().map { index, marks in
             PracticePrompt(
                 pitches: marks.map(\.pitch),
                 fingerings: marks,
                 noteValue: noteValues?[index] ?? .quarter
             )
         }
-        self.scoreMetadata = scoreMetadata
+        self.exercise = .hanon(HanonExercise(prompts: prompts, score: scoreMetadata))
         self.estimatedMinutes = estimatedMinutes
     }
 
@@ -272,7 +395,6 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         sourceName: String = "Chapter",
         guidance: PracticeLessonGuidance? = nil,
         chords: [[UInt8]],
-        scoreMetadata: PracticeScoreMetadata? = nil,
         estimatedMinutes: Int = 5
     ) {
         precondition(!chords.isEmpty, "A chord lesson needs at least one prompt")
@@ -286,18 +408,30 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
         self.sourceChapters = sourceChapters
         self.sourceName = sourceName
         self.guidance = guidance
-        self.prompts = chords.map { PracticePrompt(pitches: $0) }
-        self.scoreMetadata = scoreMetadata
+        self.exercise = .jazz(JazzExercise(
+            promptKind: .chord,
+            prompts: chords.map { PracticePrompt(pitches: $0) }
+        ))
         self.estimatedMinutes = estimatedMinutes
     }
 
+    public var prompts: [PracticePrompt] { exercise.prompts }
+    public var experience: PracticeExperience { exercise.experience }
+    public var jazzExercise: JazzExercise? {
+        guard case let .jazz(exercise) = exercise else { return nil }
+        return exercise
+    }
+    public var hanonExercise: HanonExercise? {
+        guard case let .hanon(exercise) = exercise else { return nil }
+        return exercise
+    }
     public var pitches: [UInt8] { prompts.flatMap(\.pitches) }
     public var promptCount: Int { prompts.count }
-    public var isChordExercise: Bool { prompts.contains(where: \.isChord) }
+    public var isChordExercise: Bool { jazzExercise?.promptKind == .chord }
 
     public var playbackPromptIndices: [Int] {
         guard
-            let repeated = scoreMetadata?.repeatSection,
+            let repeated = hanonExercise?.score.repeatSection,
             repeated.startPromptIndex < prompts.count,
             repeated.endPromptIndex < prompts.count
         else {
@@ -317,12 +451,12 @@ public struct PracticeLesson: Identifiable, Codable, Sendable, Equatable {
     }
 
     public var scoreMeasureCount: Int {
-        guard let promptsPerMeasure = scoreMetadata?.promptsPerMeasure else { return 1 }
+        guard let promptsPerMeasure = hanonExercise?.score.promptsPerMeasure else { return 1 }
         return Int(ceil(Double(prompts.count) / Double(promptsPerMeasure)))
     }
 
     public func promptIndices(fromMeasure startMeasure: Int, throughMeasure endMeasure: Int) -> [Int] {
-        guard let promptsPerMeasure = scoreMetadata?.promptsPerMeasure else {
+        guard let promptsPerMeasure = hanonExercise?.score.promptsPerMeasure else {
             return Array(prompts.indices)
         }
         let safeStart = min(max(startMeasure, 1), scoreMeasureCount)
@@ -456,12 +590,21 @@ public struct PracticeCourse: Identifiable, Codable, Sendable, Equatable {
     public let id: String
     public let title: String
     public let summary: String
+    public let experience: PracticeExperience
     public let stages: [CourseStage]
 
-    public init(id: String, title: String, summary: String, stages: [CourseStage]) {
+    public init(
+        id: String,
+        title: String,
+        summary: String,
+        experience: PracticeExperience,
+        stages: [CourseStage]
+    ) {
+        precondition(stages.flatMap(\.modules).flatMap(\.lessons).allSatisfy { $0.experience == experience })
         self.id = id
         self.title = title
         self.summary = summary
+        self.experience = experience
         self.stages = stages
     }
 
@@ -492,6 +635,34 @@ public struct PracticeCourse: Identifiable, Codable, Sendable, Equatable {
             }
         }
         return nil
+    }
+}
+
+public struct CourseLessonContext: Sendable, Equatable {
+    public let courseID: String
+    public let courseTitle: String
+    public let experience: PracticeExperience
+    public let lesson: PracticeLesson
+    public let navigation: CourseLessonNavigation
+
+    public var progressKey: String { CourseProgressKey.make(courseID: courseID, lessonID: lesson.id) }
+}
+
+public enum CourseProgressKey {
+    public static let separator = "::"
+
+    public static func make(courseID: String, lessonID: String) -> String {
+        "\(courseID)\(separator)\(lessonID)"
+    }
+
+    public static func resolveLegacyLessonID(_ lessonID: String, courses: [PracticeCourse]) -> String? {
+        if lessonID.contains(separator) { return lessonID }
+        guard let course = courses.first(where: { $0.lesson(id: lessonID) != nil }) else { return nil }
+        return make(courseID: course.id, lessonID: lessonID)
+    }
+
+    public static func migrate(_ keys: some Sequence<String>, courses: [PracticeCourse]) -> Set<String> {
+        Set(keys.compactMap { resolveLegacyLessonID($0, courses: courses) })
     }
 }
 

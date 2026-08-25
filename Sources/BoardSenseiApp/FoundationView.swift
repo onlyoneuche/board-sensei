@@ -4,6 +4,7 @@ struct FoundationView: View {
     private let layers: [(String, String, String)] = [
         ("Native experience", "SwiftUI + SpriteKit", "macwindow.on.rectangle"),
         ("Apple integration", "CoreMIDI + AVAudioEngine", "pianokeys"),
+        ("Course isolation", "Typed contexts + practice sessions", "square.stack.3d.up"),
         ("Stable boundary", "Small C ABI bridge", "arrow.left.arrow.right"),
         ("Portable engine", "Rust music-core", "gearshape.2"),
         ("Canonical timeline", "Ticks, tempo maps, tracks, events", "timeline.selection"),

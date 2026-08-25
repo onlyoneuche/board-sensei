@@ -15,32 +15,20 @@ struct PracticeView: View {
                         VStack(spacing: 10) {
                             header
                             progressCard
-                            completeScoreStrip
-                            if !model.isHanonLesson {
-                                PracticeStaffView(
-                                    expectedPitches: model.displayedPitches,
-                                    fingerings: model.displayedFingerings,
-                                    feedback: model.displayedFeedback,
-                                    layout: model.activeLesson.staffLayout,
-                                    reduceMotion: reduceMotion
-                                )
-                                .frame(height: staffHeight(for: geometry.size.height))
-                                .layoutPriority(1)
-                                .quickHelp(
-                                    "Notation",
-                                    "The staff follows the active prompt, shows supplied finger numbers, and switches between treble, bass, or grand staff for the lesson range."
-                                )
-                            }
+                            notationContent(for: geometry.size.height)
                             feedbackPanel
-                            if let result = model.lessonCompletionResult {
-                                LessonCompletionPanel(result: result)
-                                    .id(result.id)
-                                    .transition(.opacity)
-                            }
                         }
                         .padding(.horizontal, 14)
                         .padding(.top, 14)
                         .frame(maxWidth: .infinity)
+                    }
+
+                    if let result = model.lessonCompletionResult {
+                        LessonCompletionPanel(result: result)
+                            .id(result.id)
+                            .padding(.horizontal, 14)
+                            .transition(.opacity)
+                            .layoutPriority(2)
                     }
 
                     PianoKeyboardView()
@@ -58,12 +46,12 @@ struct PracticeView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(model.activeLesson.title)
                     .font(.system(size: 28, weight: .semibold))
-                Text("\(staffLabel) · \(model.practicePromptCount) selected prompts")
+                Text(headerDetail)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             Spacer()
-            if let mastery = model.mastery(for: model.activeLesson) {
+            if let mastery = model.mastery(for: model.activeLesson, in: model.activeCourseID) {
                 Label(mastery.title, systemImage: masterySymbol(mastery))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(mastery == .mastered ? AppTheme.accent : Color.secondary)
@@ -137,36 +125,61 @@ struct PracticeView: View {
         .quickHelp("Prompt feedback", "Shows the current target, mistakes, and whether the complete note or chord prompt matched.")
     }
 
-    private var completeScoreStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Complete score", systemImage: "music.quarternote.3")
-                    .font(.headline)
-                Spacer()
-                Text(scoreSummary)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-
-            PracticeScoreView(
-                lesson: model.activeLesson,
-                activePromptIndex: activeScoreIndex,
-                completedPromptIndices: model.completedSourcePromptIndices
+    @ViewBuilder
+    private func notationContent(for availableHeight: CGFloat) -> some View {
+        switch model.practicePresentation {
+        case .jazzPromptStaff:
+            PracticeStaffView(
+                expectedPitches: model.displayedPitches,
+                fingerings: [],
+                feedback: model.displayedFeedback,
+                layout: model.practiceStaffLayout,
+                jazzPracticeKey: model.jazzPracticeKey,
+                reduceMotion: reduceMotion
             )
-            .frame(height: 430)
+            .frame(height: staffHeight(for: availableHeight))
+            .layoutPriority(1)
+            .quickHelp(
+                "Notation",
+                "The Jazz prompt staff follows the active melodic note or complete chord voicing and adapts its clefs to the lesson range."
+            )
+        case .hanonFullScore:
+            hanonScoreStrip
         }
-        .padding(12)
-        .practicePanel()
-        .quickHelp(
-            "Complete score",
-            "The complete exercise uses standard grand-staff notation with stems, beams, barlines, repeats, note values, and a finger number on every written note. Finger 1 is the thumb and finger 5 is the little finger."
-        )
+    }
+
+    @ViewBuilder
+    private var hanonScoreStrip: some View {
+        if let exercise = model.activeHanonPracticeExercise {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Complete score", systemImage: "music.quarternote.3")
+                        .font(.headline)
+                    Spacer()
+                    Text(scoreSummary)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
+                PracticeScoreView(
+                    exercise: exercise,
+                    lessonTitle: model.activeLesson.title,
+                    activePromptIndex: activeScoreIndex,
+                    completedPromptIndices: model.completedSourcePromptIndices
+                )
+                .frame(height: 430)
+            }
+            .padding(12)
+            .practicePanel()
+            .quickHelp(
+                "Complete score",
+                "The complete exercise uses standard grand-staff notation with stems, beams, barlines, repeats, note values, and a finger number on every written note. Finger 1 is the thumb and finger 5 is the little finger."
+            )
+        }
     }
 
     private var scoreSummary: String {
-        guard let metadata = model.activeLesson.scoreMetadata else {
-            return "\(model.activeLesson.promptCount) written note groups"
-        }
+        guard let metadata = model.activeHanonPracticeExercise?.score else { return "" }
         let repeatText = metadata.repeatSection == nil ? "" : " · repeat ×2"
         return "\(metadata.timeSignature.displayName) · \(model.activeLesson.promptCount) groups\(repeatText)"
     }
@@ -203,18 +216,21 @@ struct PracticeView: View {
                 ? "Lesson complete — your course progress has been saved."
                 : "\(noteList(notes)) matched. Next: \(noteList(model.expectedPitches))."
         case let .incorrect(expected, received):
-            "\(noteName(received)) is outside this prompt. Play \(noteList(expected))."
+            "\(model.practiceNoteName(received)) is outside this prompt. Play \(noteList(expected))."
         }
     }
 
     private var promptInstruction: String {
         let fingering = model.displayedFingerings
-            .map { "\($0.hand.abbreviatedName) finger \($0.finger) on \(noteName($0.pitch))" }
+            .map { "\($0.hand.abbreviatedName) finger \($0.finger) on \(model.practiceNoteName($0.pitch))" }
             .joined(separator: " and ")
         if model.isChordPrompt {
             return "Press and hold \(noteList(model.expectedPitches)) together.\(fingering.isEmpty ? "" : " Use \(fingering).")"
         }
-        return "Find \(noteName(model.expectedPitch)) on your keyboard.\(fingering.isEmpty ? "" : " Use \(fingering).")"
+        if model.isPairedHandPrompt {
+            return "Strike \(noteList(model.expectedPitches)) as a fresh two-hand pair.\(fingering.isEmpty ? "" : " Use \(fingering).")"
+        }
+        return "Find \(model.practiceNoteName(model.expectedPitch)) on your keyboard.\(fingering.isEmpty ? "" : " Use \(fingering).")"
     }
 
     private var activeScoreIndex: Int {
@@ -222,15 +238,20 @@ struct PracticeView: View {
     }
 
     private func noteList(_ pitches: [UInt8]) -> String {
-        pitches.map(noteName).joined(separator: pitches.count > 1 ? " + " : "")
+        pitches.map(model.practiceNoteName).joined(separator: pitches.count > 1 ? " + " : "")
     }
 
     private var staffLabel: String {
-        switch model.activeLesson.staffLayout {
+        switch model.practiceStaffLayout {
         case .treble: "Treble clef"
         case .bass: "Bass clef"
         case .grand: "Grand staff"
         }
+    }
+
+    private var headerDetail: String {
+        let key = model.supportsPracticeKeySelection ? " · Key \(model.jazzPracticeKey.displayName)" : ""
+        return "\(staffLabel)\(key) · \(model.practicePromptCount) selected prompts"
     }
 
     private func staffHeight(for availableHeight: CGFloat) -> CGFloat {

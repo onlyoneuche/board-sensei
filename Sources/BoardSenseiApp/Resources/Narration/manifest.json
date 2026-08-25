@@ -97,9 +97,9 @@
       "voiceLicense" : "CC-BY-4.0"
     },
     "b-c-major" : {
-      "contentHash" : "c01ca9b4d04c6e099d218fd34bbf443afdc00a3218cc07ddfe139b4008046ad7",
-      "file" : "b-c-major-c01ca9b4d04c.wav",
-      "generatedAt" : "2026-08-20T23:38:05Z",
+      "contentHash" : "c684bc340a13813ad8d3430f60c1be75e15352f63a160ace00a213dfe95a0659",
+      "file" : "b-c-major-c684bc340a13.wav",
+      "generatedAt" : "2026-08-24T23:17:26Z",
       "model" : "pocket-tts:english:lsd=5",
       "voiceID" : "alba",
       "voiceLicense" : "CC-BY-4.0"
@@ -185,9 +185,9 @@
       "voiceLicense" : "CC-BY-4.0"
     },
     "b-transpose" : {
-      "contentHash" : "0a80d6e66d974b61a2e1467589b95aa79a6fff0c543402511d9d5f3e4e0bc001",
-      "file" : "b-transpose-0a80d6e66d97.wav",
-      "generatedAt" : "2026-08-20T23:43:34Z",
+      "contentHash" : "4038ff7f9eb9fc44317acf4b91ef051a3b672aab85c8eda82b9a237ff99b4415",
+      "file" : "b-transpose-4038ff7f9eb9.wav",
+      "generatedAt" : "2026-08-24T23:18:07Z",
       "model" : "pocket-tts:english:lsd=5",
       "voiceID" : "alba",
       "voiceLicense" : "CC-BY-4.0"

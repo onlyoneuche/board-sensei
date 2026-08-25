@@ -55,7 +55,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var mistakes = 0
     @Published private(set) var streak = 0
     @Published private(set) var hasStarted = false
-    @Published private(set) var activeLesson = JazzCourseCatalog.firstLesson
+    @Published private(set) var practiceSession = PracticeSession(
+        context: CourseLibrary.context(
+            courseID: JazzCourseCatalog.course.id,
+            lessonID: JazzCourseCatalog.firstLesson.id
+        )!
+    )
     @Published private(set) var completedLessonIDs: Set<String> = []
     @Published private(set) var isPracticeMode = false
     @Published private(set) var isPreviewPlaying = false
@@ -79,11 +84,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var celebrationSoundsEnabled = true
     @Published private(set) var animatedCelebrationsEnabled = true
     @Published private(set) var practiceStreaksEnabled = true
-    @Published private(set) var practiceHandMode = PracticeHandMode.both
-    @Published private(set) var practiceStartMeasure = 1
-    @Published private(set) var practiceEndMeasure = 1
-    @Published private(set) var automaticTempoProgressionEnabled = false
-    @Published private(set) var automaticTempoStep = 5
 
     let audio = AudioService()
     private let midi = CoreMIDIService()
@@ -94,10 +94,13 @@ final class AppModel: ObservableObject {
     private var completionSoundTask: Task<Void, Never>?
     private var practiceLoopTask: Task<Void, Never>?
     private var practiceLoopRestartPending = false
+    private var preferredJazzPracticeKey = JazzPracticeKey.c
 
     var isUsingRust: Bool { validator.isUsingRust }
-    private let completedLessonsKey = "completedJazzLessonIDs"
+    private let legacyCompletedLessonsKey = "completedJazzLessonIDs"
+    private let completedLessonsKey = "completedCourseLessonIDsV2"
     private let previewTempoKey = "exercisePreviewTempoBPM"
+    private let jazzPracticeKeyKey = "jazzPracticeKeyV1"
     private let metronomeEnabledKey = "practiceMetronomeEnabled"
     private let metronomeVolumeKey = "practiceMetronomeVolume"
     private let metronomeSignatureKey = "practiceMetronomeSignature"
@@ -110,66 +113,93 @@ final class AppModel: ObservableObject {
     private let animatedCelebrationsKey = "animatedCelebrationsEnabledV1"
     private let practiceStreaksKey = "practiceStreaksEnabledV1"
 
+    var activeLesson: PracticeLesson { practiceSession.context.lesson }
+    var activeCourseID: String { practiceSession.context.courseID }
+    var activeExperience: PracticeExperience { practiceSession.context.experience }
+    var practicePresentation: PracticePresentation { practiceSession.presentation }
+    var jazzPracticeKey: JazzPracticeKey { practiceSession.jazzPracticeKey }
+    var supportsPracticeKeySelection: Bool { practiceSession.supportsKeySelection }
+    var practiceStaffLayout: NotationStaffLayout { practiceSession.staffLayout }
+    var practiceHandMode: PracticeHandMode { practiceSession.handMode }
+    var practiceStartMeasure: Int { practiceSession.startMeasure }
+    var practiceEndMeasure: Int { practiceSession.endMeasure }
+    var automaticTempoProgressionEnabled: Bool { practiceSession.automaticTempoProgressionEnabled }
+    var automaticTempoStep: Int { practiceSession.automaticTempoStep }
     var expectedPitch: UInt8 { expectedPitches.first ?? 60 }
     var practicePromptIndices: [Int] {
-        activeLesson.promptIndices(
-            fromMeasure: practiceStartMeasure,
-            throughMeasure: practiceEndMeasure
-        )
+        practiceSession.promptIndices
     }
     var practicePromptCount: Int { practicePromptIndices.count }
     var completedSourcePromptIndices: Set<Int> {
         Set(practicePromptIndices.prefix(completedNotes))
     }
     var currentSourcePromptIndex: Int {
-        guard !practicePromptIndices.isEmpty else { return 0 }
-        return practicePromptIndices[min(completedNotes, practicePromptIndices.count - 1)]
+        practiceSession.currentSourcePromptIndex(completedPromptCount: completedNotes)
     }
     var lessonProgress: Double {
         guard practicePromptCount > 0 else { return 0 }
         return Double(completedNotes) / Double(practicePromptCount)
     }
     var isActiveLessonComplete: Bool { completedNotes == practicePromptCount }
-    var isChordPrompt: Bool { expectedPitches.count > 1 }
+    var isChordPrompt: Bool {
+        practiceSession.validationMode(for: practiceSession.prompt(at: currentSourcePromptIndex)) == .exactHeldSet
+    }
+    var isPairedHandPrompt: Bool {
+        practiceSession.validationMode(for: practiceSession.prompt(at: currentSourcePromptIndex)) == .freshAttackSet
+    }
     var displayedPitches: [UInt8] { isPreviewPlaying ? previewPitches : expectedPitches }
     var displayedFeedback: PracticeFeedback { isPreviewPlaying ? .waiting : feedback }
     var displayedFingerings: [PracticeFingering] {
         if isPreviewPlaying {
             guard let previewPromptIndex, activeLesson.prompts.indices.contains(previewPromptIndex) else { return [] }
-            return activeLesson.prompts[previewPromptIndex].filtered(for: practiceHandMode).fingerings
+            return practiceSession.prompt(at: previewPromptIndex).fingerings
         }
-        return activeLesson.prompts[currentSourcePromptIndex].filtered(for: practiceHandMode).fingerings
+        return practiceSession.prompt(at: currentSourcePromptIndex).fingerings
     }
-    var activeLessonMeasureCount: Int { activeLesson.scoreMeasureCount }
-
-    var isHanonLesson: Bool {
-        HanonCourseCatalog.lesson(id: activeLesson.id) != nil
+    var activeLessonMeasureCount: Int { practiceSession.measureCount }
+    var isFocusedPracticeSelection: Bool { practiceSession.isFocusedSelection }
+    var isFullMeasureRange: Bool { practiceSession.isFullMeasureRange }
+    var activeLessonNavigation: CourseLessonNavigation? { practiceSession.context.navigation }
+    var practiceRoutePrompts: [PracticePrompt] {
+        activeLesson.prompts.indices.map { practiceSession.fullPrompt(at: $0) }
     }
-    var isFocusedPracticeSelection: Bool {
-        practiceHandMode != .both
-            || practiceStartMeasure != 1
-            || practiceEndMeasure != activeLesson.scoreMeasureCount
-    }
-    var isFullMeasureRange: Bool {
-        practiceStartMeasure == 1 && practiceEndMeasure == activeLesson.scoreMeasureCount
-    }
-    var activeLessonNavigation: CourseLessonNavigation? {
-        JazzCourseCatalog.navigation(forLessonID: activeLesson.id)
-            ?? HanonCourseCatalog.navigation(forLessonID: activeLesson.id)
-    }
+    var activeHanonPracticeExercise: HanonExercise? { practiceSession.hanonPracticeExercise }
 
     init() {
-        let stored = UserDefaults.standard.stringArray(forKey: completedLessonsKey) ?? []
-        completedLessonIDs = Set(stored)
+        var migratedCompleted = CourseProgressKey.migrate(
+            UserDefaults.standard.stringArray(forKey: completedLessonsKey) ?? [],
+            courses: CourseLibrary.courses
+        )
+        let legacyCompleted = UserDefaults.standard.stringArray(forKey: legacyCompletedLessonsKey) ?? []
+        for lessonID in legacyCompleted {
+            if let key = CourseProgressKey.resolveLegacyLessonID(lessonID, courses: CourseLibrary.courses) {
+                migratedCompleted.insert(key)
+            }
+        }
+        completedLessonIDs = migratedCompleted
+        UserDefaults.standard.set(completedLessonIDs.sorted(), forKey: completedLessonsKey)
+        if !legacyCompleted.isEmpty {
+            UserDefaults.standard.removeObject(forKey: legacyCompletedLessonsKey)
+        }
+
         lessonRecords = LearningExperienceStore.loadRecords()
-        for lessonID in completedLessonIDs where lessonRecords[lessonID] == nil {
-            lessonRecords[lessonID] = LessonProgressRecord(
+        let legacyRecords = LearningExperienceStore.loadLegacyRecords()
+        for (lessonID, record) in legacyRecords {
+            if let key = CourseProgressKey.resolveLegacyLessonID(lessonID, courses: CourseLibrary.courses),
+               lessonRecords[key] == nil {
+                lessonRecords[key] = record
+            }
+        }
+        for progressKey in completedLessonIDs where lessonRecords[progressKey] == nil {
+            lessonRecords[progressKey] = LessonProgressRecord(
                 practiceStarts: 1,
                 completions: 1,
                 bestAccuracy: 1,
                 lastAccuracy: 1
             )
         }
+        LearningExperienceStore.saveRecords(lessonRecords)
+        if !legacyRecords.isEmpty { LearningExperienceStore.clearLegacyRecords() }
         unlockedAchievements = LearningExperienceStore.loadAchievements()
         hasCompletedOnboarding = UserDefaults.standard.bool(forKey: onboardingCompletedKey)
         if let rawGoal = UserDefaults.standard.string(forKey: learningGoalKey),
@@ -204,9 +234,13 @@ final class AppModel: ObservableObject {
            let signature = PracticeTimeSignature.common.first(where: { $0.id == signatureID }) {
             metronomeSignature = signature
         }
-        expectedPitches = activeLesson.prompts[0].pitches
-        practiceEndMeasure = activeLesson.scoreMeasureCount
-        validator.setExpectedPitch(expectedPitch)
+        if let rawKey = UserDefaults.standard.object(forKey: jazzPracticeKeyKey) as? Int,
+           let key = JazzPracticeKey(rawValue: rawKey) {
+            preferredJazzPracticeKey = key
+            practiceSession.selectJazzPracticeKey(key)
+        }
+        expectedPitches = practiceSession.prompt(at: 0).pitches
+        configureValidatorForCurrentPrompt(resetHeldNotes: true)
     }
 
     func start() {
@@ -327,28 +361,39 @@ final class AppModel: ObservableObject {
         completedNotes = 0
         mistakes = 0
         streak = 0
-        expectedPitches = activeLesson.prompts[currentSourcePromptIndex]
-            .filtered(for: practiceHandMode)
-            .pitches
+        audio.panic()
+        activeNotes.removeAll()
+        expectedPitches = practiceSession.prompt(at: currentSourcePromptIndex).pitches
         feedback = .waiting
-        validator.setExpectedPitch(expectedPitch)
+        configureValidatorForCurrentPrompt(resetHeldNotes: true)
     }
 
-    func startLesson(_ lesson: PracticeLesson) {
+    func startLesson(_ context: CourseLessonContext) {
         clearQuickHelp()
         stopPracticeLoop()
         stopExercisePreview()
         audio.panic()
-        activeLesson = lesson
-        practiceHandMode = .both
-        practiceStartMeasure = 1
-        practiceEndMeasure = lesson.scoreMeasureCount
-        var record = lessonRecords[lesson.id] ?? LessonProgressRecord()
+        practiceSession = PracticeSession(
+            context: context,
+            jazzPracticeKey: preferredJazzPracticeKey
+        )
+        activeNotes.removeAll()
+        var record = lessonRecords[context.progressKey] ?? LessonProgressRecord()
         record.registerStart()
-        lessonRecords[lesson.id] = record
+        lessonRecords[context.progressKey] = record
         LearningExperienceStore.saveRecords(lessonRecords)
         resetLesson()
         isPracticeMode = true
+    }
+
+    func startLesson(course: PracticeCourse, lesson: PracticeLesson) {
+        guard let context = CourseLibrary.context(courseID: course.id, lessonID: lesson.id) else { return }
+        startLesson(context)
+    }
+
+    func startLessonInActiveCourse(_ lesson: PracticeLesson) {
+        guard let context = CourseLibrary.context(courseID: activeCourseID, lessonID: lesson.id) else { return }
+        startLesson(context)
     }
 
     func leavePractice(for destination: Destination = .courses) {
@@ -360,16 +405,16 @@ final class AppModel: ObservableObject {
         self.destination = destination
     }
 
-    func isCompleted(_ lesson: PracticeLesson) -> Bool {
-        completedLessonIDs.contains(lesson.id)
+    func isCompleted(_ lesson: PracticeLesson, in courseID: String) -> Bool {
+        completedLessonIDs.contains(CourseProgressKey.make(courseID: courseID, lessonID: lesson.id))
     }
 
-    func mastery(for lesson: PracticeLesson) -> LessonMastery? {
-        lessonRecords[lesson.id]?.mastery
+    func mastery(for lesson: PracticeLesson, in courseID: String) -> LessonMastery? {
+        lessonRecords[CourseProgressKey.make(courseID: courseID, lessonID: lesson.id)]?.mastery
     }
 
-    func progressRecord(for lesson: PracticeLesson) -> LessonProgressRecord? {
-        lessonRecords[lesson.id]
+    func progressRecord(for lesson: PracticeLesson, in courseID: String) -> LessonProgressRecord? {
+        lessonRecords[CourseProgressKey.make(courseID: courseID, lessonID: lesson.id)]
     }
 
     func chooseLearningGoal(_ goal: LearningGoal) {
@@ -427,32 +472,49 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(previewTempoBPM, forKey: previewTempoKey)
     }
 
-    func setPracticeHandMode(_ mode: PracticeHandMode) {
-        guard practiceHandMode != mode else { return }
+    func setJazzPracticeKey(_ key: JazzPracticeKey) {
+        guard supportsPracticeKeySelection, jazzPracticeKey != key else { return }
         stopPracticeLoop()
         stopExercisePreview()
-        practiceHandMode = mode
+        preferredJazzPracticeKey = key
+        UserDefaults.standard.set(key.rawValue, forKey: jazzPracticeKeyKey)
+        practiceSession.selectJazzPracticeKey(key)
+        resetCurrentPass(clearResult: true)
+    }
+
+    func practiceNoteName(_ pitch: UInt8) -> String {
+        supportsPracticeKeySelection ? jazzPracticeKey.noteName(for: pitch) : noteName(pitch)
+    }
+
+    func setPracticeHandMode(_ mode: PracticeHandMode) {
+        guard practiceSession.supportsFocusedPractice, practiceHandMode != mode else { return }
+        stopPracticeLoop()
+        stopExercisePreview()
+        practiceSession.handMode = mode
         resetCurrentPass(clearResult: true)
     }
 
     func setPracticeMeasureRange(start: Int, end: Int) {
-        let maximum = activeLesson.scoreMeasureCount
+        guard practiceSession.supportsFocusedPractice else { return }
+        let maximum = practiceSession.measureCount
         let safeStart = min(max(start, 1), maximum)
         let safeEnd = min(max(end, safeStart), maximum)
         guard practiceStartMeasure != safeStart || practiceEndMeasure != safeEnd else { return }
         stopPracticeLoop()
         stopExercisePreview()
-        practiceStartMeasure = safeStart
-        practiceEndMeasure = safeEnd
+        practiceSession.startMeasure = safeStart
+        practiceSession.endMeasure = safeEnd
         resetCurrentPass(clearResult: true)
     }
 
     func setAutomaticTempoProgressionEnabled(_ enabled: Bool) {
-        automaticTempoProgressionEnabled = enabled
+        guard practiceSession.supportsFocusedPractice else { return }
+        practiceSession.automaticTempoProgressionEnabled = enabled
     }
 
     func setAutomaticTempoStep(_ step: Int) {
-        automaticTempoStep = min(max(step, 1), 10)
+        guard practiceSession.supportsFocusedPractice else { return }
+        practiceSession.automaticTempoStep = min(max(step, 1), 10)
     }
 
     func setMetronomeEnabled(_ enabled: Bool) {
@@ -527,39 +589,44 @@ final class AppModel: ObservableObject {
 
         guard isPracticeMode, !isPreviewPlaying else { return }
         guard completedNotes < practicePromptCount else { return }
-        guard case let .noteOn(note, velocity, channel, timestamp) = event, velocity > 0 else { return }
 
-        if isChordPrompt {
-            validateChordPrompt(receivedNote: note)
+        let input: (note: UInt8, velocity: UInt8, channel: UInt8, timestamp: UInt64)
+        switch event {
+        case let .noteOn(note, velocity, channel, timestamp) where velocity > 0:
+            input = (note, velocity, channel, timestamp)
+        case let .noteOff(note, _, channel, timestamp):
+            input = (note, 0, channel, timestamp)
+        default:
             return
         }
 
-        let result = validator.validate(note: note, velocity: velocity, channel: channel, timestamp: timestamp)
+        let result = validator.validate(
+            note: input.note,
+            velocity: input.velocity,
+            channel: input.channel,
+            timestamp: input.timestamp
+        )
         switch result.status {
         case .correct:
-            completePrompt(notes: [note])
+            completePrompt(notes: expectedPitches)
         case .incorrect:
-            feedback = .incorrect(expected: [result.expectedPitch], received: result.receivedPitch)
+            feedback = .incorrect(expected: expectedPitches, received: result.receivedPitch)
             mistakes += 1
             streak = 0
+        case .partial:
+            feedback = .waiting
         case .ignored, .unavailable:
             break
         }
     }
 
-    private func validateChordPrompt(receivedNote: UInt8) {
-        let prompt = activeLesson.prompts[currentSourcePromptIndex].filtered(for: practiceHandMode)
-        guard prompt.accepts(receivedNote) else {
-            feedback = .incorrect(expected: expectedPitches, received: receivedNote)
-            mistakes += 1
-            streak = 0
-            return
-        }
-
-        if prompt.isSatisfied(by: activeNotes) {
-            completePrompt(notes: expectedPitches)
-        } else {
-            feedback = .waiting
+    private func configureValidatorForCurrentPrompt(resetHeldNotes: Bool) {
+        if resetHeldNotes { validator.reset() }
+        let prompt = practiceSession.prompt(at: currentSourcePromptIndex)
+        let mode = practiceSession.validationMode(for: prompt)
+        let spread: UInt16 = mode == .freshAttackSet ? 120 : 0
+        if !validator.configure(pitches: prompt.pitches, mode: mode, spreadMilliseconds: spread) {
+            validator.setExpectedPitch(prompt.pitches[0])
         }
     }
 
@@ -567,18 +634,14 @@ final class AppModel: ObservableObject {
         feedback = .correct(notes: notes)
         completedNotes += 1
         streak += 1
+        expectedPitches = practiceSession.prompt(at: currentSourcePromptIndex).pitches
         if completedNotes < practicePromptCount {
-            expectedPitches = activeLesson.prompts[currentSourcePromptIndex]
-                .filtered(for: practiceHandMode)
-                .pitches
-            if expectedPitches.count == 1 {
-                validator.setExpectedPitch(expectedPitch)
-            }
+            configureValidatorForCurrentPrompt(resetHeldNotes: false)
         } else {
             if isFocusedPracticeSelection {
                 recordFocusedPracticeCompletion()
             } else {
-                completedLessonIDs.insert(activeLesson.id)
+                completedLessonIDs.insert(practiceSession.context.progressKey)
                 persistCourseProgress()
                 recordLessonCompletion()
             }
@@ -590,14 +653,15 @@ final class AppModel: ObservableObject {
     }
 
     private func recordLessonCompletion() {
-        var record = lessonRecords[activeLesson.id] ?? LessonProgressRecord()
+        let progressKey = practiceSession.context.progressKey
+        var record = lessonRecords[progressKey] ?? LessonProgressRecord()
         let priorMastery = record.mastery
         let priorBest = record.bestAccuracy
         let accuracy = record.registerCompletion(
             promptCount: activeLesson.promptCount,
             mistakes: mistakes
         )
-        lessonRecords[activeLesson.id] = record
+        lessonRecords[progressKey] = record
         LearningExperienceStore.saveRecords(lessonRecords)
         updatePracticeDayStreak()
 
@@ -628,7 +692,7 @@ final class AppModel: ObservableObject {
             0,
             1 - Double(mistakes) / Double(max(practicePromptCount, 1))
         )
-        let record = lessonRecords[activeLesson.id] ?? LessonProgressRecord()
+        let record = lessonRecords[practiceSession.context.progressKey] ?? LessonProgressRecord()
         lessonCompletionResult = LessonCompletionResult(
             lessonID: activeLesson.id,
             lessonTitle: activeLesson.title,
@@ -700,7 +764,7 @@ final class AppModel: ObservableObject {
         practiceLoopTask?.cancel()
         practiceLoopTask = Task { [weak self] in
             guard let self else { return }
-            let signature = self.activeLesson.scoreMetadata?.timeSignature ?? self.metronomeSignature
+            let signature = self.practiceSession.writtenTimeSignature ?? self.metronomeSignature
             var beat = 0
             while !Task.isCancelled, self.isPracticeLoopActive {
                 if beat == 0, self.practiceLoopRestartPending {
@@ -726,15 +790,14 @@ final class AppModel: ObservableObject {
 
     private func runExercisePreview() async {
         repeat {
-            let prompts = activeLesson.prompts
-            let signature = activeLesson.scoreMetadata?.timeSignature ?? metronomeSignature
+            let signature = practiceSession.writtenTimeSignature ?? metronomeSignature
             let beatUnitInQuarterNotes = 4.0 / Double(signature.denominator)
             let quarterNoteMilliseconds = 60_000.0 / Double(previewTempoBPM)
             var elapsedQuarterNotes = 0.0
 
             for promptIndex in previewPromptIndices {
                 guard !Task.isCancelled else { return }
-                let prompt = prompts[promptIndex].filtered(for: practiceHandMode)
+                let prompt = practiceSession.prompt(at: promptIndex)
                 let writtenBeat = elapsedQuarterNotes / beatUnitInQuarterNotes
                 let roundedBeat = writtenBeat.rounded()
                 if abs(writtenBeat - roundedBeat) < 0.000_1 {

@@ -67,6 +67,7 @@ struct PianoKeyboardView: View {
     private func keyView(_ key: PianoKey) -> some View {
         PianoKeyView(
             key: key,
+            noteDisplayName: model.practiceNoteName(key.note),
             isActive: model.activeNotes.contains(key.note) || model.previewPitches.contains(key.note),
             isExpected: model.displayedPitches.contains(key.note),
             fingering: model.displayedFingerings.first { $0.pitch == key.note },
@@ -242,6 +243,7 @@ private struct MIDIControllerKeyView: View {
 
 private struct PianoKeyView: View {
     let key: PianoKey
+    let noteDisplayName: String
     let isActive: Bool
     let isExpected: Bool
     let fingering: PracticeFingering?
@@ -272,7 +274,7 @@ private struct PianoKeyView: View {
                         .font(.system(size: 8, weight: .bold, design: .monospaced))
                 }
                 if shouldShowNoteName {
-                    Text(noteName(key.note)).font(.system(size: 9, weight: .bold))
+                    Text(noteDisplayName).font(.system(size: 9, weight: .bold))
                 }
                 if let shortcut = key.shortcut {
                     Text(shortcut)
@@ -307,7 +309,7 @@ private struct PianoKeyView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(noteName(key.note))\(key.shortcut.map { ", computer key \($0)" } ?? "")")
+        .accessibilityLabel("\(noteDisplayName)\(key.shortcut.map { ", computer key \($0)" } ?? "")")
         .accessibilityValue(keyAccessibilityValue)
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onAccessibleActivate() }

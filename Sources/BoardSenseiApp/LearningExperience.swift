@@ -89,7 +89,8 @@ struct LessonCompletionResult: Identifiable, Equatable {
 }
 
 enum LearningExperienceStore {
-    private static let recordsKey = "lessonProgressRecordsV1"
+    private static let legacyRecordsKey = "lessonProgressRecordsV1"
+    private static let recordsKey = "courseLessonProgressRecordsV2"
     private static let achievementsKey = "learningAchievementsV1"
 
     static func loadRecords(defaults: UserDefaults = .standard) -> [String: LessonProgressRecord] {
@@ -105,6 +106,18 @@ enum LearningExperienceStore {
         defaults.set(data, forKey: recordsKey)
     }
 
+    static func loadLegacyRecords(defaults: UserDefaults = .standard) -> [String: LessonProgressRecord] {
+        guard let data = defaults.data(forKey: legacyRecordsKey),
+              let records = try? JSONDecoder().decode([String: LessonProgressRecord].self, from: data) else {
+            return [:]
+        }
+        return records
+    }
+
+    static func clearLegacyRecords(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: legacyRecordsKey)
+    }
+
     static func loadAchievements(defaults: UserDefaults = .standard) -> Set<LearningAchievement> {
         let rawValues = defaults.stringArray(forKey: achievementsKey) ?? []
         return Set(rawValues.compactMap(LearningAchievement.init(rawValue:)))
@@ -114,4 +127,3 @@ enum LearningExperienceStore {
         defaults.set(achievements.map(\.rawValue).sorted(), forKey: achievementsKey)
     }
 }
-
