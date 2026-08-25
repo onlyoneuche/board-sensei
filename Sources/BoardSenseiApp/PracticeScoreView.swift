@@ -2,20 +2,21 @@ import MusicCore
 import SwiftUI
 
 struct PracticeScoreView: View {
-    let lesson: PracticeLesson
+    let exercise: HanonExercise
+    let lessonTitle: String
     let activePromptIndex: Int
     let completedPromptIndices: Set<Int>
 
     private var systems: [ScoreSystem] {
-        let promptsPerMeasure = lesson.scoreMetadata?.promptsPerMeasure ?? 4
-        let measuresPerSystem = lesson.scoreMetadata?.measuresPerSystem ?? 4
+        let promptsPerMeasure = exercise.score.promptsPerMeasure
+        let measuresPerSystem = exercise.score.measuresPerSystem
         var measures: [ScoreMeasure] = []
         var promptIndex = 0
-        while promptIndex < lesson.prompts.count {
-            let end = min(promptIndex + promptsPerMeasure, lesson.prompts.count)
+        while promptIndex < exercise.prompts.count {
+            let end = min(promptIndex + promptsPerMeasure, exercise.prompts.count)
             measures.append(ScoreMeasure(
                 number: measures.count + 1,
-                prompts: (promptIndex..<end).map { ScorePrompt(index: $0, prompt: lesson.prompts[$0]) }
+                prompts: (promptIndex..<end).map { ScorePrompt(index: $0, prompt: exercise.prompts[$0]) }
             ))
             promptIndex = end
         }
@@ -26,8 +27,7 @@ struct PracticeScoreView: View {
     }
 
     private var activeSystem: Int {
-        let promptsPerSystem = (lesson.scoreMetadata?.promptsPerMeasure ?? 4)
-            * (lesson.scoreMetadata?.measuresPerSystem ?? 4)
+        let promptsPerSystem = exercise.score.promptsPerMeasure * exercise.score.measuresPerSystem
         return max(0, activePromptIndex / promptsPerSystem)
     }
 
@@ -39,7 +39,7 @@ struct PracticeScoreView: View {
                         ForEach(systems) { system in
                             ScoreSystemView(
                                 system: system,
-                                metadata: lesson.scoreMetadata,
+                                metadata: exercise.score,
                                 activePromptIndex: activePromptIndex,
                                 completedPromptIndices: completedPromptIndices,
                                 canvasWidth: max(1_040, geometry.size.width - 16)
@@ -60,7 +60,7 @@ struct PracticeScoreView: View {
         .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
         .overlay { RoundedRectangle(cornerRadius: 7).stroke(PracticeTheme.separator, lineWidth: 1) }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Complete engraved score for \(lesson.title)")
+        .accessibilityLabel("Complete engraved score for \(lessonTitle)")
     }
 }
 
@@ -82,7 +82,7 @@ struct ScoreSystem: Identifiable, Sendable {
 
 struct ScoreSystemView: View {
     let system: ScoreSystem
-    let metadata: PracticeScoreMetadata?
+    let metadata: PracticeScoreMetadata
     let activePromptIndex: Int
     let completedPromptIndices: Set<Int>
     let canvasWidth: CGFloat
@@ -136,7 +136,8 @@ struct ScoreSystemView: View {
             anchor: .center
         )
 
-        if system.number == 0, let signature = metadata?.timeSignature {
+        if system.number == 0 {
+            let signature = metadata.timeSignature
             let signatureText = Text("\(signature.numerator)\n\(signature.denominator)")
                 .font(.system(size: 19, weight: .bold, design: .serif))
                 .foregroundStyle(scoreInk)
@@ -264,7 +265,7 @@ struct ScoreSystemView: View {
 
     private func drawBarline(context: inout GraphicsContext, x: CGFloat, measure: ScoreMeasure, atStart: Bool) {
         strokeLine(context: &context, from: CGPoint(x: x, y: 50), to: CGPoint(x: x, y: 174), width: 1)
-        guard let repeated = metadata?.repeatSection else { return }
+        guard let repeated = metadata.repeatSection else { return }
         let firstPrompt = measure.prompts.first?.index
         let lastPrompt = measure.prompts.last?.index
         let isRepeatStart = atStart && firstPrompt == repeated.startPromptIndex

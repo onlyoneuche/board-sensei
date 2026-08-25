@@ -7,6 +7,7 @@ public enum HanonCourseCatalog {
         id: "hanon-technique",
         title: "Hanon Technique Course",
         summary: "Twenty complete Part I exercises with the original pitch routes and both-hand fingering inside every lesson.",
+        experience: .hanonTechnique,
         stages: [partOne]
     )
 

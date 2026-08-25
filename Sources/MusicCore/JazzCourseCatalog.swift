@@ -5,6 +5,7 @@ public enum JazzCourseCatalog {
         id: "jazz-piano",
         title: "Jazz Course",
         summary: "A guided path from keyboard fundamentals to modern jazz harmony, voicing, improvisation, and comping.",
+        experience: .jazz,
         stages: [beginner, intermediate, advanced]
     )
 
@@ -15,7 +16,7 @@ public enum JazzCourseCatalog {
             chordLesson("b-inversions", "First Inversions", "Reorganize the notes of a triad without changing its identity.", "Play each three-note inversion together and keep common tones physically close.", [1], [[60, 64, 67], [64, 67, 72], [67, 72, 76]]),
         ]),
         module("beginner-major-map", "The Major-Key Map", "Connect scales, diatonic harmony, and the essential jazz cadence.", [
-            lesson("b-c-major", "C Major Journey", "Play and hear all seven notes of a major scale.", "Use even timing and listen for the leading tone pulling toward the final tonic.", [2, 11], [60, 62, 64, 65, 67, 69, 71, 72]),
+            lesson("b-c-major", "Major Scale Journey", "Play and hear all seven notes of a major scale.", "Use even timing and listen for the leading tone pulling toward the final tonic.", [2, 11], [60, 62, 64, 65, 67, 69, 71, 72]),
             chordLesson("b-diatonic-thirds", "Diatonic Thirds", "Discover harmony by pairing notes from the major scale.", "Press each dyad together, release it, then move to the next pair.", [2], [[60, 64], [62, 65], [64, 67], [65, 69]]),
             chordLesson("b-first-251", "First II–V–I", "Follow roots and defining chord tones through a basic jazz cadence.", "Play each two-note shell simultaneously and listen for the cadence resolving.", [2, 3], [[50, 53], [55, 59], [48, 52]]),
         ]),
@@ -27,7 +28,7 @@ public enum JazzCourseCatalog {
         module("beginner-color", "Adding Jazz Color", "Extend familiar harmony and begin moving ideas between keys.", [
             chordLesson("b-major-nine", "Major-Ninth Voicing", "Add seventh and ninth color to a major chord.", "Press all five tones together, then move to the compact upper inversion.", [5], [[60, 64, 67, 71, 74], [64, 67, 71, 74, 76]]),
             chordLesson("b-minor-nine", "Minor-Ninth Voicing", "Build a richer minor sound with seventh and ninth extensions.", "Hold each five-note voicing long enough to hear its complete minor color.", [5], [[62, 65, 69, 72, 76], [65, 69, 72, 76, 81]]),
-            chordLesson("b-transpose", "Move the Shape", "Transpose a familiar chord shape into another key area.", "Play the C voicing together, release it, then reproduce the shape from F.", [11, 23], [[60, 64, 67, 72], [65, 69, 72, 77]]),
+            chordLesson("b-transpose", "Move the Shape", "Transpose a familiar chord shape into another key area.", "Play the tonic voicing together, release it, then reproduce the shape from the fourth.", [11, 23], [[60, 64, 67, 72], [65, 69, 72, 77]]),
         ]),
     ])
 

@@ -75,7 +75,7 @@ struct LessonCompletionPanel: View {
 
                 if let nextLesson = model.activeLessonNavigation?.nextLesson {
                     Button("Next lesson", systemImage: "chevron.right") {
-                        model.startLesson(nextLesson)
+                        model.startLessonInActiveCourse(nextLesson)
                     }
                     .buttonStyle(.borderedProminent)
                 } else {

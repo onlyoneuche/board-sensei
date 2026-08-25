@@ -96,14 +96,24 @@ Inside any future audio render callback, also forbid allocation, locks, actors/t
 - Keep gamification tied to learning evidence: Introduced on lesson entry, Practised after completion, and Mastered after three completions with best accuracy of at least 90%. Do not add coins, lives, punitive missed-day messaging, or unrelated XP.
 - Completion celebrations must respect both the app preference and `accessibilityReduceMotion`. Completion audio is a dedicated, locally synthesized high-register chime sequence, remains independent of the selected practice instrument, stays optional, and must be cancelled when practice or preview state changes.
 - Never interrupt a completed player with a blocking success modal. Keep pass results inline so the staff and keyboard remain usable, and offer manual repeat, scored practice looping, and learner-controlled Next navigation there.
+- Pin pass results directly above the practice piano, outside the scrolling notation region, so completion actions remain visible without scrolling at every supported window height.
+- When a pass completes, immediately present its first selected prompt again on the staff and piano. Keep scoring paused until the learner explicitly repeats or the practice-loop clock reaches beat one.
 - The Board Sensei mark is a compact side-profile grand piano and seated learner, crossed by one studio-blue guidance gesture. Keep its bundled source asset, Dock icon, onboarding identity, and navigation lockup visually consistent; preserve the solid off-white presentation tile for light/dark contrast, and do not add a mascot without an explicit product decision.
+- Treat Courses as the welcoming studio home: center a larger existing brand mark, keep learning status compact, and present course cards in a horizontally scrollable shelf that remains useful at narrow and wide window sizes. Preserve the Classical placeholder until its curriculum is implemented.
+- Prefer visual affordances over persistent explanatory text for familiar interactions such as horizontal scrolling. Preserve explicit accessibility labels and hints even when the visible instruction is only an icon, partial card, divider, or other spatial cue.
 
 ## Course authoring
 
-- Define platform-neutral course structures in `Sources/MusicCore/CourseModel.swift` and catalog content in `JazzCourseCatalog.swift`.
-- Keep lesson IDs stable and unique. They are persistence keys; renaming one discards the learner's stored completion for that lesson.
+- Define platform-neutral course structures in `Sources/MusicCore/CourseModel.swift` and register every catalog in `CourseLibrary.swift`.
+- Every course declares one typed `PracticeExperience`, and every lesson carries the matching typed exercise payload. Do not infer behavior from lesson IDs, optional metadata, pitch count, or catalog lookup inside UI/session code.
+- Keep course and lesson IDs stable. Progress is stored under `courseID::lessonID`; renaming either identifier discards the learner's stored completion for that lesson.
 - Every current lesson must have at least one MIDI pitch, a concise objective, an actionable practice instruction, and one or more source chapter numbers.
-- Keep pitches in MIDI's `0...127` range. Use the `pitches:` initializer for melodic single-note prompts and the `chords:` initializer for simultaneous voicings. A chord prompt advances only when its exact pitch set is held; do not encode chord lessons as arpeggios.
+- Keep pitches in MIDI's `0...127` range. Jazz uses the `pitches:` initializer for melodic prompts and `chords:` for simultaneous voicings. Hanon uses its fingered-prompt initializer and required score metadata. Never infer a chord merely because a prompt contains multiple pitches.
+- Launch lessons through `CourseLessonContext` so navigation, persistence, presentation, and validation retain the owning course. Construct a fresh `PracticeSession` on every lesson change; never carry Hanon hand/range/tempo state into Jazz.
+- Keep the workspace shell, MIDI/audio services, transport, result strip, and piano shared. Compose course-specific notation and controls from `PracticePresentation`: Jazz owns the adaptive prompt staff, while Hanon owns the complete score and focused-practice controls.
+- Configure matching explicitly: Jazz melodic prompts use single-note attacks, Jazz chords use exact held sets, Hanon both-hands prompts use fresh attacks within 120 ms, and isolated Hanon hands use single-note attacks. Keep Rust and the native bridge fallback behavior identical.
+- Author Jazz prompt pitches relative to C and keep tonal instructions functional rather than hard-coded to C note names. `JazzPracticeKey` transposes prompts inside `PracticeSession`; the selected key must drive notation spelling, staff layout, piano targets, route labels, preview playback, and validator configuration together. It must never alter Hanon's register.
+- Preserve Hanon's verified catalog pitches as written source data. `PracticeSession` may move the complete Hanon route up one octave when every shifted note fits the shared C2–C7 piano, and must otherwise retain the written register. Apply one offset to both hands and use the resulting contextual prompts consistently for score rendering, route labels, piano targets, fingering, preview, and validation.
 - Every lesson needs both a short, original `theory` summary and a distinct, more detailed `studyGuide` explanation. Keep both separate from the actionable exercise instruction; the unified class guide presents the detailed material while `theory` remains available for concise contexts.
 - Opening a course lesson enters one unified lesson/practice workspace. Its resizable, vertically scrollable left guide owns the complete explanation, purpose, preparation plan, listening goals, success criteria, narration, preview, and route; the right workspace owns live progress, staff, feedback, and keyboard.
 - Lesson narration prefers a hash-verified bundled recording and uses the retained native `AVSpeechSynthesizer` only as a missing/stale-asset fallback. `LessonNarrationService` must stop either source when changing lessons, starting exercise preview, or leaving class mode.
@@ -129,6 +139,8 @@ At minimum, cover:
 
 - MIDI running status and velocity-zero note-on behavior.
 - Note, chord, and timing validation success and failure paths.
+- Hanon-to-Jazz and Jazz-to-Hanon session switching, presentation isolation, fresh paired attacks, and course-namespaced progress migration.
+- Jazz transposition across all 12 keys, exact-chord policy retention, playable MIDI range, Hanon isolation from the Jazz key, and Hanon practice-register fitting without mutating its verified catalog.
 - FFI null/ownership edge cases.
 - Tempo-map and tick/sample conversion at tempo changes.
 - Device disconnect and all-notes-off behavior when those services change.

@@ -20,10 +20,10 @@ struct HanonCourseCatalogTests {
         #expect(Set(lessons.map(\.id)).count == 20)
         #expect(lessons.allSatisfy { $0.staffLayout == .grand })
         #expect(lessons.allSatisfy { lesson in
-            lesson.scoreMetadata?.timeSignature == .init(numerator: 2, denominator: 4)
-                && lesson.scoreMetadata?.promptsPerMeasure == 8
-                && lesson.scoreMetadata?.repeatSection?.startPromptIndex == 0
-                && lesson.scoreMetadata?.repeatSection?.endPromptIndex == lesson.promptCount - 2
+            lesson.hanonExercise?.score.timeSignature == .init(numerator: 2, denominator: 4)
+                && lesson.hanonExercise?.score.promptsPerMeasure == 8
+                && lesson.hanonExercise?.score.repeatSection?.startPromptIndex == 0
+                && lesson.hanonExercise?.score.repeatSection?.endPromptIndex == lesson.promptCount - 2
                 && lesson.prompts.dropLast().allSatisfy { $0.noteValue == .sixteenth }
                 && lesson.prompts.last?.noteValue == .half
         })
