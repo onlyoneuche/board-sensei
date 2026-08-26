@@ -23,6 +23,7 @@ let package = Package(
             resources: [
                 .copy("Resources/Narration"),
                 .copy("Resources/Brand"),
+                .copy("Resources/Instruments"),
             ]
         ),
         .executableTarget(name: "BoardSenseiNarrationTool", dependencies: ["MusicCore"]),

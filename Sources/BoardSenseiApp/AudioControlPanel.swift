@@ -54,12 +54,12 @@ struct AudioControlPanel: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .help("Practice sound: \(audio.selectedInstrument.name)")
+        .help("Practice sound: \(audio.selectedInstrument.name) · \(audio.soundBankDescription)")
         .accessibilityLabel("Practice sound")
         .accessibilityValue(audio.selectedInstrument.name)
         .quickHelp(
             "Practice sound",
-            "Choose a grand piano, electric piano, synth lead, or synth pad for both live playing and exercise playback."
+            "Choose a grand piano, electric piano, synth lead, or synth pad for both live playing and exercise playback. Current source: \(audio.soundBankDescription)."
         )
     }
 }

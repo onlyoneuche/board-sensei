@@ -11,7 +11,15 @@ struct BoardSenseiApp: App {
             RootView()
                 .environmentObject(model)
                 .frame(minWidth: 980, minHeight: 680)
-                .task { model.start() }
+                .task {
+                    appDelegate.stopPlaybackAction = {
+                        guard model.isPracticeMode, model.isPreviewPlaying else { return false }
+                        BoardSenseiDiagnostics.trace("keyboard-action", "Space stopping exercise playback")
+                        model.stopExercisePreview()
+                        return true
+                    }
+                    model.start()
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact)
@@ -35,7 +43,36 @@ struct BoardSenseiApp: App {
 
 @MainActor
 final class BoardSenseiAppDelegate: NSObject, NSApplicationDelegate {
+    private var diagnosticEventMonitor: Any?
+    var stopPlaybackAction: (() -> Bool)?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        BoardSenseiDiagnostics.trace(
+            "lifecycle",
+            "applicationDidFinishLaunching; log=\(BoardSenseiDiagnostics.currentLogPath)"
+        )
+        diagnosticEventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseUp, .keyDown]
+        ) { event in
+            let windowNumber = event.window?.windowNumber ?? -1
+            let viewName = event.window?.contentView?.hitTest(event.locationInWindow)
+                .map { NSStringFromClass(type(of: $0)) } ?? "none"
+            let key = event.type == .keyDown ? " keyCode=\(event.keyCode)" : ""
+            BoardSenseiDiagnostics.trace(
+                "appkit-event",
+                "type=\(event.type.rawValue) window=\(windowNumber) "
+                    + "point=(\(Int(event.locationInWindow.x)),\(Int(event.locationInWindow.y))) "
+                    + "hit=\(viewName)\(key)"
+            )
+            if event.type == .keyDown,
+               event.keyCode == 49,
+               !event.isARepeat,
+               event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+               self.stopPlaybackAction?() == true {
+                return nil
+            }
+            return event
+        }
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.applicationIconImage = BoardSenseiAppIcon.make()
         DispatchQueue.main.async {
@@ -56,5 +93,12 @@ final class BoardSenseiAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        BoardSenseiDiagnostics.trace("lifecycle", "applicationWillTerminate")
+        if let diagnosticEventMonitor {
+            NSEvent.removeMonitor(diagnosticEventMonitor)
+        }
     }
 }

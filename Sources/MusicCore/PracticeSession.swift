@@ -50,12 +50,12 @@ public struct PracticeSession: Sendable, Equatable {
     public var supportsFocusedPractice: Bool { context.experience == .hanonTechnique }
     public var supportsKeySelection: Bool { context.experience == .jazz }
 
-    /// Supplies the complete Hanon score in the fitted practice register while
-    /// retaining the source score's timing and fingering metadata.
+    /// Supplies the Hanon score in the fitted practice register and current
+    /// hand mode while retaining the source timing metadata.
     public var hanonPracticeExercise: HanonExercise? {
         guard case let .hanon(exercise) = context.lesson.exercise else { return nil }
         return HanonExercise(
-            prompts: context.lesson.prompts.indices.map { fullPrompt(at: $0) },
+            prompts: context.lesson.prompts.indices.map { prompt(at: $0) },
             score: exercise.score
         )
     }
@@ -68,6 +68,14 @@ public struct PracticeSession: Sendable, Equatable {
     public var promptIndices: [Int] {
         guard supportsFocusedPractice else { return Array(context.lesson.prompts.indices) }
         return context.lesson.promptIndices(fromMeasure: startMeasure, throughMeasure: endMeasure)
+    }
+
+    /// Source indices used by audible preview. A complete Hanon selection keeps
+    /// the written repeat route; focused measure ranges play only their slice.
+    /// The prompt at every returned index is still projected through `handMode`.
+    public var playbackPromptIndices: [Int] {
+        guard supportsFocusedPractice, isFullMeasureRange else { return promptIndices }
+        return context.lesson.playbackPromptIndices
     }
 
     public var isFocusedSelection: Bool {

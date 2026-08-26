@@ -6,6 +6,7 @@ private struct Options {
     var voiceLicense = "CC-BY-4.0"
     var language = "english"
     var decodeSteps = 5
+    var courseID: String?
     var lessonID: String?
     var force = false
     var dryRun = false
@@ -55,15 +56,29 @@ private struct BoardSenseiNarrationTool {
             throw ToolError.invalidManifest("unsupported schema version \(manifest.schemaVersion)")
         }
 
-        let allLessons = JazzCourseCatalog.course.stages.flatMap(\.modules).flatMap(\.lessons)
+        let allLessons = CourseLibrary.courses.flatMap(\.lessons)
+        let courseLessons: [PracticeLesson]
+        if let requestedCourse = options.courseID {
+            let resolvedCourseID = resolveCourseID(requestedCourse)
+            guard let course = CourseLibrary.course(id: resolvedCourseID) else {
+                let available = CourseLibrary.courses.map(\.id).joined(separator: ", ")
+                throw ToolError.usage(
+                    "Unknown course: \(requestedCourse). Available course IDs: \(available)"
+                )
+            }
+            courseLessons = course.lessons
+        } else {
+            courseLessons = allLessons
+        }
         let selectedLessons: [PracticeLesson]
         if let lessonID = options.lessonID {
-            guard let lesson = allLessons.first(where: { $0.id == lessonID }) else {
-                throw ToolError.usage("Unknown lesson ID: \(lessonID)")
+            guard let lesson = courseLessons.first(where: { $0.id == lessonID }) else {
+                let scope = options.courseID.map { " in course \($0)" } ?? ""
+                throw ToolError.usage("Unknown lesson ID\(scope): \(lessonID)")
             }
             selectedLessons = [lesson]
         } else {
-            selectedLessons = allLessons
+            selectedLessons = courseLessons
         }
 
         if options.check {
@@ -101,7 +116,7 @@ private struct BoardSenseiNarrationTool {
                 file: filename,
                 voiceID: options.voice,
                 voiceLicense: options.voiceLicense,
-                model: "pocket-tts:\(options.language):lsd=\(options.decodeSteps)",
+                model: "pocket-tts:\(options.language):sampler-decode-steps=\(options.decodeSteps)",
                 generatedAt: ISO8601DateFormatter().string(from: Date())
             )
             try writeManifest(manifest, to: manifestURL)
@@ -146,6 +161,10 @@ private struct BoardSenseiNarrationTool {
                     throw ToolError.usage("--decode-steps requires an integer from 1 through 10")
                 }
                 options.decodeSteps = steps
+            case "--course":
+                index += 1
+                guard index < arguments.count else { throw ToolError.usage("--course requires an ID") }
+                options.courseID = arguments[index]
             case "--lesson":
                 index += 1
                 guard index < arguments.count else { throw ToolError.usage("--lesson requires an ID") }
@@ -176,6 +195,7 @@ private struct BoardSenseiNarrationTool {
 
           --dry-run              Show which lessons need generation without running Pocket TTS
           --check                Fail when a selected narration asset is missing or stale
+          --course ID            Process one course (aliases: jazz, hanon)
           --lesson ID            Process one lesson instead of the complete catalog
           --voice VOICE          Pocket TTS voice name, file, or URL (default: alba)
           --voice-license SPDX   Required with --voice; stored in the manifest
@@ -186,6 +206,14 @@ private struct BoardSenseiNarrationTool {
         Generation is local and free. It requires uvx. The first run
         downloads Pocket TTS model data. The default Alba voice is CC-BY-4.0 licensed.
         """)
+    }
+
+    private static func resolveCourseID(_ value: String) -> String {
+        switch value.lowercased() {
+        case "jazz": JazzCourseCatalog.course.id
+        case "hanon", "hannon": HanonCourseCatalog.course.id
+        default: value
+        }
     }
 
     private static func loadManifest(at url: URL) throws -> NarrationManifest {
@@ -238,7 +266,7 @@ private struct BoardSenseiNarrationTool {
                 "--voice", options.voice,
                 "--output-path", wav.path,
                 "--language", options.language,
-                "--lsd-decode-steps", String(options.decodeSteps),
+                "--sampler-decode-steps", String(options.decodeSteps),
             ],
             name: "Pocket TTS"
         )

@@ -6,18 +6,16 @@ struct QuickHelpContent: Equatable {
 }
 
 private struct QuickHelpModifier: ViewModifier {
-    @EnvironmentObject private var model: AppModel
     let title: String
     let detail: String
 
     func body(content: Content) -> some View {
-        content.onHover { isHovering in
-            if isHovering {
-                model.showQuickHelp(title: title, detail: detail)
-            } else {
-                model.clearQuickHelp()
-            }
-        }
+        // Updating the shared observable model from `onHover` is unsafe when a
+        // control changes identity under the pointer (for example Play -> Stop).
+        // macOS 26 can dispatch the stale hover callback after SwiftUI has torn
+        // down its actor executor, producing a null-executor crash. Native help
+        // owns its tracking lifecycle and keeps the same guidance accessible.
+        content.help("\(title) — \(detail)")
     }
 }
 

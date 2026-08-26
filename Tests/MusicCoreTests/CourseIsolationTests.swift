@@ -80,6 +80,36 @@ struct CourseIsolationTests {
         #expect(hanonSession.validationMode(for: hanonSession.prompt(at: 0)) == .singleNote)
     }
 
+    @Test("Hanon hand mode projects score, route, preview, and validation prompts together")
+    func hanonHandProjection() throws {
+        let context = try #require(CourseLibrary.context(
+            courseID: HanonCourseCatalog.course.id,
+            lessonID: "hanon-01"
+        ))
+        var session = PracticeSession(context: context)
+
+        let both = session.prompt(at: 0)
+        #expect(both.fingerings.map(\.hand) == [.left, .right])
+        #expect(session.validationMode(for: both) == .freshAttackSet)
+
+        for mode in [PracticeHandMode.right, .left] {
+            session.handMode = mode
+            let selectedHand = try #require(mode.hand)
+            let prompt = session.prompt(at: 0)
+            let score = try #require(session.hanonPracticeExercise)
+
+            #expect(prompt.pitches.count == 1)
+            #expect(prompt.fingerings.allSatisfy { $0.hand == selectedHand })
+            #expect(score.prompts == context.lesson.prompts.indices.map { session.prompt(at: $0) })
+            #expect(score.prompts.flatMap(\.fingerings).allSatisfy { $0.hand == selectedHand })
+            #expect(session.validationMode(for: prompt) == .singleNote)
+            #expect(session.playbackPromptIndices == context.lesson.playbackPromptIndices)
+            #expect(session.playbackPromptIndices.allSatisfy {
+                session.prompt(at: $0).fingerings.allSatisfy { $0.hand == selectedHand }
+            })
+        }
+    }
+
     @Test("A completed pass presents its first selected prompt again")
     func completedPassWrapsPresentation() throws {
         let jazzContext = try #require(CourseLibrary.context(

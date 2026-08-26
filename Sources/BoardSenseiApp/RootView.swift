@@ -289,8 +289,13 @@ private struct LessonGuideSidebar: View {
                     VStack(spacing: 10) {
                         HStack(spacing: 8) {
                             Button {
+                                BoardSenseiDiagnostics.trace(
+                                    "button-action",
+                                    "exercise playback action began; lesson=\(model.activeLesson.id) playing=\(model.isPreviewPlaying)"
+                                )
                                 narration.stop()
                                 model.toggleExercisePreview()
+                                BoardSenseiDiagnostics.trace("button-action", "exercise playback action returned")
                             } label: {
                                 Label(
                                     model.isPreviewPlaying
@@ -303,7 +308,9 @@ private struct LessonGuideSidebar: View {
                             .buttonStyle(.borderedProminent)
 
                             Button {
+                                BoardSenseiDiagnostics.trace("button-action", "exercise loop action began")
                                 model.toggleExerciseLoopEnabled()
+                                BoardSenseiDiagnostics.trace("button-action", "exercise loop action returned")
                             } label: {
                                 Image(systemName: "repeat")
                                     .foregroundStyle(model.isExerciseLoopEnabled ? Color.white : Color.secondary)
@@ -522,6 +529,10 @@ private struct LessonGuideSidebar: View {
 
                 HStack(spacing: 8) {
                     Button {
+                        BoardSenseiDiagnostics.trace(
+                            "button-action",
+                            "narration action began; state=\(String(describing: narration.state)) lesson=\(model.activeLesson.id)"
+                        )
                         if narration.state == .idle, model.isPreviewPlaying {
                             model.toggleExercisePreview()
                         }
@@ -529,6 +540,10 @@ private struct LessonGuideSidebar: View {
                             lessonID: model.activeLesson.id,
                             contentHash: model.activeLesson.narrationContentHash,
                             text: model.activeLesson.narrationScript
+                        )
+                        BoardSenseiDiagnostics.trace(
+                            "button-action",
+                            "narration action returned; state=\(String(describing: narration.state))"
                         )
                     } label: {
                         Label(narrationButtonTitle, systemImage: narrationButtonSymbol)

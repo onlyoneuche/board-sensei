@@ -192,6 +192,166 @@
       "voiceID" : "alba",
       "voiceLicense" : "CC-BY-4.0"
     },
+    "hanon-01" : {
+      "contentHash" : "a90b08c16b727195d4ebe126d508fb0964902e0839839acca3ad8b775ef06814",
+      "file" : "hanon-01-a90b08c16b72.wav",
+      "generatedAt" : "2026-08-26T00:06:01Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-02" : {
+      "contentHash" : "8bafeaacccbb9f2f14089f0507a1386483511e8960f36d3df07a34ccefcb47fe",
+      "file" : "hanon-02-8bafeaacccbb.wav",
+      "generatedAt" : "2026-08-26T00:06:37Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-03" : {
+      "contentHash" : "7bed22a54def95ae07656c92f7b460271d0c59a6de0054054cc01ee0cc97f437",
+      "file" : "hanon-03-7bed22a54def.wav",
+      "generatedAt" : "2026-08-26T00:07:12Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-04" : {
+      "contentHash" : "501df461930b816305a1b67e118d31c4ad6ba9ac3560abe69eb66ba4d2cf1ea6",
+      "file" : "hanon-04-501df461930b.wav",
+      "generatedAt" : "2026-08-26T00:07:47Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-05" : {
+      "contentHash" : "67f469251e4cee9f3381c8d485b959e7206f2dec0bece80c2b5a988ab99d65fd",
+      "file" : "hanon-05-67f469251e4c.wav",
+      "generatedAt" : "2026-08-26T00:08:22Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-06" : {
+      "contentHash" : "ef432e23f9ca1cc97921f602608c0f33dc1f0de1ac01cb698cfec0fa1cd078e8",
+      "file" : "hanon-06-ef432e23f9ca.wav",
+      "generatedAt" : "2026-08-26T00:08:58Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-07" : {
+      "contentHash" : "5e318c23f92fe8da95608878078af73cfc484bf0fcf47fd3c548555735a3c3b1",
+      "file" : "hanon-07-5e318c23f92f.wav",
+      "generatedAt" : "2026-08-26T00:09:33Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-08" : {
+      "contentHash" : "04ca14cf129439ef41b6b66547a486c36a5f0ef2df13677d76fe52a30ac97d42",
+      "file" : "hanon-08-04ca14cf1294.wav",
+      "generatedAt" : "2026-08-26T00:10:08Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-09" : {
+      "contentHash" : "81f339c3ef6894888464a907dae1bb12dfa6d63babfb1fdc7dce6fc0331a1269",
+      "file" : "hanon-09-81f339c3ef68.wav",
+      "generatedAt" : "2026-08-26T00:10:44Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-10" : {
+      "contentHash" : "e000abd98178939cda0df814a035c4ecb56927bf4cfe242fe876345fd91f208b",
+      "file" : "hanon-10-e000abd98178.wav",
+      "generatedAt" : "2026-08-26T00:11:20Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-11" : {
+      "contentHash" : "4cc4568f9cccea144d14e330a278e1dd8c994b493ed392405f4bb0dd74b63353",
+      "file" : "hanon-11-4cc4568f9ccc.wav",
+      "generatedAt" : "2026-08-26T00:11:56Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-12" : {
+      "contentHash" : "42c8569c4c08b32aab5ee5b1657e23197a0d9711da4e5aae2af7fdfa49664869",
+      "file" : "hanon-12-42c8569c4c08.wav",
+      "generatedAt" : "2026-08-26T00:12:30Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-13" : {
+      "contentHash" : "e5ca1b3091e84adff66a0430cb6bb9a4fc9259692498816dde46d2ea2247eddd",
+      "file" : "hanon-13-e5ca1b3091e8.wav",
+      "generatedAt" : "2026-08-26T00:13:07Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-14" : {
+      "contentHash" : "9a7310b727ab381dd32d5de46bc1065ffa7feb4bb6d6d5633e693b254be9def3",
+      "file" : "hanon-14-9a7310b727ab.wav",
+      "generatedAt" : "2026-08-26T00:13:43Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-15" : {
+      "contentHash" : "ddd34cb1abc44037536976f01e8dec18f3822b3f02941dc26b95212f3f545f90",
+      "file" : "hanon-15-ddd34cb1abc4.wav",
+      "generatedAt" : "2026-08-26T00:14:21Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-16" : {
+      "contentHash" : "3616e8f4fd386496300f3b185af7dec8f3e5c0e575c1b286bfb72c318ed91d2e",
+      "file" : "hanon-16-3616e8f4fd38.wav",
+      "generatedAt" : "2026-08-26T00:14:56Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-17" : {
+      "contentHash" : "3bf5f3dda527d504d14b320836e20e218b6b8048482c78eb0e9a4d541dca2749",
+      "file" : "hanon-17-3bf5f3dda527.wav",
+      "generatedAt" : "2026-08-26T00:15:31Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-18" : {
+      "contentHash" : "50cfa0b253665538d494d44e6df0abd6c6de14347e0d3be749663b238db34701",
+      "file" : "hanon-18-50cfa0b25366.wav",
+      "generatedAt" : "2026-08-26T00:16:05Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-19" : {
+      "contentHash" : "38ba6bdb1a799532d700d1635864de80ee30432b7969f1b1f23048dda6903fed",
+      "file" : "hanon-19-38ba6bdb1a79.wav",
+      "generatedAt" : "2026-08-26T00:16:41Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
+    "hanon-20" : {
+      "contentHash" : "746c95002351b9645238e149ae246024d75eeb61e873ed3414422c1f361f088b",
+      "file" : "hanon-20-746c95002351.wav",
+      "generatedAt" : "2026-08-26T00:17:16Z",
+      "model" : "pocket-tts:english:lsd=5",
+      "voiceID" : "alba",
+      "voiceLicense" : "CC-BY-4.0"
+    },
     "i-altered" : {
       "contentHash" : "0de7f9918e7222129175e8cf240d9e898f09d1835b1c12cf2f3e6bcbcd5162f4",
       "file" : "i-altered-0de7f9918e72.wav",

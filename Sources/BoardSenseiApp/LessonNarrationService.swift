@@ -24,9 +24,11 @@ final class LessonNarrationService: NSObject, ObservableObject {
     }
 
     override init() {
+        BoardSenseiDiagnostics.trace("narration", "service init")
         manifest = Self.loadManifest()
         super.init()
         synthesizer.delegate = self
+        BoardSenseiDiagnostics.trace("narration", "service ready; manifestLessons=\(manifest.lessons.count)")
     }
 
     func sourceDescription(lessonID: String, contentHash: String) -> String {
@@ -36,20 +38,28 @@ final class LessonNarrationService: NSObject, ObservableObject {
     }
 
     func toggle(lessonID: String, contentHash: String, text: String) {
+        BoardSenseiDiagnostics.trace(
+            "narration",
+            "toggle entered; lesson=\(lessonID) state=\(String(describing: state))"
+        )
         switch state {
         case .idle:
             if let url = recordedURL(lessonID: lessonID, contentHash: contentHash),
                startRecordedAudio(at: url) {
+                BoardSenseiDiagnostics.trace("narration", "recorded playback started; file=\(url.lastPathComponent)")
                 return
             }
 
+            BoardSenseiDiagnostics.trace("narration", "starting system voice fallback")
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = AVSpeechSynthesisVoice(language: nil)
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate
             synthesizer.speak(utterance)
             playbackSource = .systemVoice
             state = .speaking
+            BoardSenseiDiagnostics.trace("narration", "system voice speak returned")
         case .speaking:
+            BoardSenseiDiagnostics.trace("narration", "pause requested; source=\(String(describing: playbackSource))")
             if playbackSource == .recorded {
                 audioPlayer?.pause()
                 state = .paused
@@ -57,6 +67,7 @@ final class LessonNarrationService: NSObject, ObservableObject {
                 state = .paused
             }
         case .paused:
+            BoardSenseiDiagnostics.trace("narration", "resume requested; source=\(String(describing: playbackSource))")
             if playbackSource == .recorded {
                 audioPlayer?.play()
                 state = .speaking
@@ -67,15 +78,18 @@ final class LessonNarrationService: NSObject, ObservableObject {
     }
 
     func stop() {
+        BoardSenseiDiagnostics.trace("narration", "stop requested; state=\(String(describing: state))")
         guard state != .idle else { return }
         audioPlayer?.stop()
         audioPlayer = nil
         synthesizer.stopSpeaking(at: .immediate)
         playbackSource = nil
         state = .idle
+        BoardSenseiDiagnostics.trace("narration", "stopped")
     }
 
     private func startRecordedAudio(at url: URL) -> Bool {
+        BoardSenseiDiagnostics.trace("narration", "constructing AVAudioPlayer; file=\(url.lastPathComponent)")
         do {
             let player = try AVAudioPlayer(contentsOf: url)
             player.delegate = self
@@ -86,6 +100,7 @@ final class LessonNarrationService: NSObject, ObservableObject {
             state = .speaking
             return true
         } catch {
+            BoardSenseiDiagnostics.trace("narration", "recorded playback failed; error=\(error.localizedDescription)")
             return false
         }
     }
@@ -119,6 +134,7 @@ final class LessonNarrationService: NSObject, ObservableObject {
     }
 
     private func playbackFinished() {
+        BoardSenseiDiagnostics.trace("narration", "playback finished callback")
         audioPlayer = nil
         playbackSource = nil
         state = .idle

@@ -161,7 +161,7 @@ final class AppModel: ObservableObject {
     var isFullMeasureRange: Bool { practiceSession.isFullMeasureRange }
     var activeLessonNavigation: CourseLessonNavigation? { practiceSession.context.navigation }
     var practiceRoutePrompts: [PracticePrompt] {
-        activeLesson.prompts.indices.map { practiceSession.fullPrompt(at: $0) }
+        activeLesson.prompts.indices.map { practiceSession.prompt(at: $0) }
     }
     var activeHanonPracticeExercise: HanonExercise? { practiceSession.hanonPracticeExercise }
 
@@ -244,6 +244,7 @@ final class AppModel: ObservableObject {
     }
 
     func start() {
+        BoardSenseiDiagnostics.trace("model", "start requested; hasStarted=\(hasStarted)")
         guard !hasStarted else { return }
         hasStarted = true
         audio.start()
@@ -271,6 +272,7 @@ final class AppModel: ObservableObject {
         } catch {
             connectionMessage = error.localizedDescription
         }
+
     }
 
     func connect(to id: Int32) {
@@ -308,6 +310,10 @@ final class AppModel: ObservableObject {
     }
 
     func beginSimulatedNote(note: UInt8, velocity: UInt8 = 96) {
+        BoardSenseiDiagnostics.trace(
+            "piano-input",
+            "mouse press note=\(note) velocity=\(velocity) alreadyActive=\(activeNotes.contains(note))"
+        )
         guard !activeNotes.contains(note) else { return }
         handle(.noteOn(
             note: note,
@@ -318,6 +324,10 @@ final class AppModel: ObservableObject {
     }
 
     func endSimulatedNote(note: UInt8) {
+        BoardSenseiDiagnostics.trace(
+            "piano-input",
+            "mouse release note=\(note) active=\(activeNotes.contains(note))"
+        )
         guard activeNotes.contains(note) else { return }
         handle(.noteOff(
             note: note,
@@ -468,14 +478,17 @@ final class AppModel: ObservableObject {
     }
 
     func setPreviewTempo(_ beatsPerMinute: Int) {
+        let shouldRestartPreview = isPreviewPlaying
         previewTempoBPM = min(max(beatsPerMinute, 50), 180)
         UserDefaults.standard.set(previewTempoBPM, forKey: previewTempoKey)
+        if shouldRestartPreview { startExercisePreview() }
     }
 
     func setJazzPracticeKey(_ key: JazzPracticeKey) {
         guard supportsPracticeKeySelection, jazzPracticeKey != key else { return }
         stopPracticeLoop()
         stopExercisePreview()
+        audio.resetPreviewPlaybackGeneration()
         preferredJazzPracticeKey = key
         UserDefaults.standard.set(key.rawValue, forKey: jazzPracticeKeyKey)
         practiceSession.selectJazzPracticeKey(key)
@@ -488,10 +501,19 @@ final class AppModel: ObservableObject {
 
     func setPracticeHandMode(_ mode: PracticeHandMode) {
         guard practiceSession.supportsFocusedPractice, practiceHandMode != mode else { return }
+        BoardSenseiDiagnostics.trace(
+            "practice-selection",
+            "hand mode changing from=\(practiceHandMode.rawValue) to=\(mode.rawValue)"
+        )
         stopPracticeLoop()
         stopExercisePreview()
+        audio.resetPreviewPlaybackGeneration()
         practiceSession.handMode = mode
         resetCurrentPass(clearResult: true)
+        BoardSenseiDiagnostics.trace(
+            "practice-selection",
+            "hand mode ready; firstPrompt=\(currentSourcePromptIndex) pitches=\(expectedPitches) previewPlaying=\(isPreviewPlaying)"
+        )
     }
 
     func setPracticeMeasureRange(start: Int, end: Int) {
@@ -502,6 +524,7 @@ final class AppModel: ObservableObject {
         guard practiceStartMeasure != safeStart || practiceEndMeasure != safeEnd else { return }
         stopPracticeLoop()
         stopExercisePreview()
+        audio.resetPreviewPlaybackGeneration()
         practiceSession.startMeasure = safeStart
         practiceSession.endMeasure = safeEnd
         resetCurrentPass(clearResult: true)
@@ -519,6 +542,7 @@ final class AppModel: ObservableObject {
 
     func setMetronomeEnabled(_ enabled: Bool) {
         isMetronomeEnabled = enabled
+        audio.setPreviewMetronomeEnabled(enabled)
         UserDefaults.standard.set(enabled, forKey: metronomeEnabledKey)
         if !enabled, !isPracticeLoopActive { metronomeBeatIndex = nil }
     }
@@ -545,25 +569,67 @@ final class AppModel: ObservableObject {
     }
 
     func toggleExercisePreview() {
+        BoardSenseiDiagnostics.trace(
+            "preview-action",
+            "toggle entered; currentlyPlaying=\(isPreviewPlaying)"
+        )
         if isPreviewPlaying { stopExercisePreview() }
         else { startExercisePreview() }
     }
 
     func toggleExerciseLoopEnabled() {
+        BoardSenseiDiagnostics.trace(
+            "preview-action",
+            "loop toggle entered; oldValue=\(isExerciseLoopEnabled) previewPlaying=\(isPreviewPlaying)"
+        )
         isExerciseLoopEnabled.toggle()
+        if isPreviewPlaying { startExercisePreview() }
     }
 
     func startExercisePreview() {
+        BoardSenseiDiagnostics.trace(
+            "preview-action",
+            "start entered; lesson=\(activeLesson.id) course=\(activeCourseID)"
+        )
         stopCompletionSound()
         stopPracticeLoop()
         stopExercisePreview()
-        isPreviewPlaying = true
-        previewTask = Task { [weak self] in
-            await self?.runExercisePreview()
+        let timeline = makeExercisePreviewTimeline()
+        BoardSenseiDiagnostics.trace(
+            "preview-action",
+            "timeline ready; events=\(timeline.events.count) duration=\(timeline.durationQuarterNotes)"
+        )
+        do {
+            try audio.startPreview(
+                timeline: timeline,
+                tempo: previewTempoBPM,
+                looping: isExerciseLoopEnabled,
+                metronomeEnabled: isMetronomeEnabled
+            )
+            BoardSenseiDiagnostics.trace("preview-action", "audio start returned")
+            isPreviewPlaying = true
+            BoardSenseiDiagnostics.trace("preview-action", "published isPreviewPlaying=true")
+            previewTask = Task { [weak self] in
+                guard let self else { return }
+                BoardSenseiDiagnostics.trace("preview-observer", "task entered")
+                await observeExercisePreview(timeline: timeline)
+            }
+        } catch {
+            BoardSenseiDiagnostics.trace(
+                "preview-action",
+                "audio start failed; error=\(error.localizedDescription)"
+            )
+            isPreviewPlaying = false
+            previewPitches = []
+            previewPromptIndex = nil
         }
     }
 
     func stopExercisePreview() {
+        BoardSenseiDiagnostics.trace(
+            "preview-action",
+            "stop entered; taskExists=\(previewTask != nil) playing=\(isPreviewPlaying)"
+        )
         previewTask?.cancel()
         previewTask = nil
         audio.stopPreview()
@@ -574,6 +640,20 @@ final class AppModel: ObservableObject {
     }
 
     private func handle(_ event: NormalizedMIDIEvent) {
+        switch event {
+        case let .noteOn(note, velocity, channel, _):
+            BoardSenseiDiagnostics.trace(
+                "midi-dispatch",
+                "noteOn note=\(note) velocity=\(velocity) channel=\(channel) preview=\(isPreviewPlaying)"
+            )
+        case let .noteOff(note, _, channel, _):
+            BoardSenseiDiagnostics.trace(
+                "midi-dispatch",
+                "noteOff note=\(note) channel=\(channel) preview=\(isPreviewPlaying)"
+            )
+        default:
+            break
+        }
         recentEvents.insert(event, at: 0)
         if recentEvents.count > 100 { recentEvents.removeLast(recentEvents.count - 100) }
         audio.handle(event)
@@ -788,98 +868,54 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func runExercisePreview() async {
-        repeat {
-            let signature = practiceSession.writtenTimeSignature ?? metronomeSignature
-            let beatUnitInQuarterNotes = 4.0 / Double(signature.denominator)
-            let quarterNoteMilliseconds = 60_000.0 / Double(previewTempoBPM)
-            var elapsedQuarterNotes = 0.0
+    private var previewPromptIndices: [Int] {
+        practiceSession.playbackPromptIndices
+    }
 
-            for promptIndex in previewPromptIndices {
-                guard !Task.isCancelled else { return }
-                let prompt = practiceSession.prompt(at: promptIndex)
-                let writtenBeat = elapsedQuarterNotes / beatUnitInQuarterNotes
-                let roundedBeat = writtenBeat.rounded()
-                if abs(writtenBeat - roundedBeat) < 0.000_1 {
-                    metronomeBeatIndex = Int(roundedBeat) % signature.numerator
-                    if isMetronomeEnabled {
-                        audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
-                    }
-                }
+    private func makeExercisePreviewTimeline() -> PracticePlaybackTimeline {
+        let signature = practiceSession.writtenTimeSignature ?? metronomeSignature
+        var cursor = 0.0
+        let events = previewPromptIndices.map { promptIndex in
+            let prompt = practiceSession.prompt(at: promptIndex)
+            let stepDuration = prompt.noteValue.quarterNoteBeats
+            defer { cursor += stepDuration }
+            return PracticePlaybackEvent(
+                sourcePromptIndex: promptIndex,
+                pitches: prompt.pitches,
+                startQuarterNote: cursor,
+                stepDurationQuarterNotes: stepDuration,
+                audibleDurationQuarterNotes: max(0.02, stepDuration * 0.76)
+            )
+        }
+        return PracticePlaybackTimeline(events: events, timeSignature: signature)
+    }
 
-                previewPromptIndex = promptIndex
-                previewPitches = prompt.pitches
-                audio.beginPreview(prompt.pitches)
-                let durationMilliseconds = max(
-                    20,
-                    Int((quarterNoteMilliseconds * prompt.noteValue.quarterNoteBeats).rounded())
-                )
-                guard await sleepForPreviewNote(beatMilliseconds: durationMilliseconds) else {
-                    audio.endPreview(prompt.pitches)
-                    return
-                }
-                audio.endPreview(prompt.pitches)
-                guard await sleepForPreviewGap(beatMilliseconds: durationMilliseconds) else { return }
-                elapsedQuarterNotes += prompt.noteValue.quarterNoteBeats
+    private func observeExercisePreview(timeline: PracticePlaybackTimeline) async {
+        BoardSenseiDiagnostics.trace("preview-observer", "observer entered")
+        while !Task.isCancelled, audio.isPreviewSequencePlaying {
+            let position = audio.previewPositionInQuarterNotes
+            let event = timeline.event(atQuarterNote: position, looping: isExerciseLoopEnabled)
+            previewPromptIndex = event?.sourcePromptIndex
+            previewPitches = event?.pitches ?? []
+
+            let beatUnit = 4.0 / Double(timeline.timeSignature.denominator)
+            metronomeBeatIndex = Int(floor(position / beatUnit + 0.000_1))
+                % timeline.timeSignature.numerator
+            do {
+                try await Task.sleep(for: .milliseconds(24))
+            } catch {
+                return
             }
+        }
 
-            if isExerciseLoopEnabled {
-                let barQuarterNotes = Double(signature.numerator) * beatUnitInQuarterNotes
-                let alignedQuarterNotes = ceil(elapsedQuarterNotes / barQuarterNotes) * barQuarterNotes
-                while elapsedQuarterNotes + 0.000_1 < alignedQuarterNotes {
-                    guard !Task.isCancelled else { return }
-                    let writtenBeat = Int((elapsedQuarterNotes / beatUnitInQuarterNotes).rounded())
-                    metronomeBeatIndex = writtenBeat % signature.numerator
-                    if isMetronomeEnabled {
-                        audio.playMetronomeClick(accented: metronomeBeatIndex == 0)
-                    }
-                    previewPromptIndex = nil
-                    previewPitches = []
-                    let padding = min(beatUnitInQuarterNotes, alignedQuarterNotes - elapsedQuarterNotes)
-                    guard await sleepForBeat(
-                        beatMilliseconds: Int((quarterNoteMilliseconds * padding).rounded())
-                    ) else { return }
-                    elapsedQuarterNotes += padding
-                }
-            }
-        } while isExerciseLoopEnabled && !Task.isCancelled
-
+        guard !Task.isCancelled else { return }
+        BoardSenseiDiagnostics.trace("preview-observer", "render transport stopped naturally")
+        audio.stopPreview()
         previewTask = nil
         previewPitches = []
         previewPromptIndex = nil
         isPreviewPlaying = false
         metronomeBeatIndex = nil
-    }
-
-    private var previewPromptIndices: [Int] {
-        isFullMeasureRange ? activeLesson.playbackPromptIndices : practicePromptIndices
-    }
-
-    private func sleepForPreviewNote(beatMilliseconds: Int) async -> Bool {
-        do {
-            try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.76)))
-            return true
-        } catch {
-            return false
-        }
-    }
-
-    private func sleepForPreviewGap(beatMilliseconds: Int) async -> Bool {
-        do {
-            try await Task.sleep(for: .milliseconds(Int(Double(beatMilliseconds) * 0.24)))
-            return true
-        } catch {
-            return false
-        }
-    }
-
-    private func sleepForBeat(beatMilliseconds: Int) async -> Bool {
-        do {
-            try await Task.sleep(for: .milliseconds(beatMilliseconds))
-            return true
-        } catch {
-            return false
-        }
     }
 
 }

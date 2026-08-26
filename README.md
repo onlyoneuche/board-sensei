@@ -42,6 +42,18 @@ Run every available check with:
 
 The script always runs Swift tests. It also runs Rust tests and Clippy when `cargo` is installed.
 
+### Runtime crash trace
+
+Debug builds emit an immediate `[BS-TRACE]` line at AppKit pointer delivery, button-action entry, piano input, narration transitions, audio-engine setup, and every exercise-preview scheduling phase. The trace deliberately does not run inside CoreMIDI receive or audio-render callbacks. Each line is written both to the terminal and to `/tmp/board-sensei-<PID>.log`, so the last successful boundary remains available after a hard crash.
+
+Run normally; diagnostics are enabled by default for `swift run` debug builds:
+
+```sh
+swift run BoardSensei
+```
+
+The launch trace prints the exact log path. After reproducing a crash, copy the final 40–80 `[BS-TRACE]` lines from the terminal or that file. If the last line is `appkit-event` with no following `button-action`, SwiftUI failed before the application action ran. If `button-action` appears, the subsequent `preview`, `audio`, or `narration` entry identifies how far application code progressed. Set `BOARD_SENSEI_DIAGNOSTICS=0` to disable the debug trace; release builds require `BOARD_SENSEI_DIAGNOSTICS=1` to enable it.
+
 ## Using the app
 
 1. First launch opens a four-step onboarding flow: choose a practice goal and starting point, connect or skip a MIDI controller, then play middle C for an immediate first feedback moment. **Skip setup** remains available, and onboarding can be replayed later from Settings.
@@ -62,7 +74,9 @@ The script always runs Swift tests. It also runs Rust tests and Clippy when `car
 16. Open **Settings** to change the learning profile, replay onboarding, configure game-feel preferences, or choose the full-key colors used for expected and pressed/preview notes.
 17. Open **MIDI Lab** to select a device, inspect normalized events, or recover from a stuck note with **Panic**. Once connected, the lab shows a clean, read-only five-octave keyboard that mirrors incoming note presses without lesson markings or computer-key labels.
 
-The sampler first looks for a bundled `Piano.sf2`. Until a licensed SoundFont is added, it uses the system General MIDI bank when available. Do not commit a third-party SoundFont without confirming redistribution rights.
+Live playing and **Hear full exercise** use independent sampler instances, so demonstration note-offs and live note-offs cannot silence one another. The audio engine and all attached nodes remain within one main-actor-owned service for a stable lifecycle; no Apple audio object or captured scheduling block is passed through unchecked detached-task ownership. Exercise note-on and note-off packets are translated from `PracticePlaybackTimeline` into the preview sampler's local render samples and queued through its `scheduleMIDIEventBlock`. MIDI, the PCM metronome cycle, and the observed staff/piano playhead are all derived from one future host-time origin. Starting audio is synchronous with transport state publication, while the later task only observes the playhead; this prevents a cancelled Stop or Space action from being followed by deferred playback startup. Each preview generation also receives its own MIDI channel, which Stop silences and mutes so already-queued future packets cannot resume after the transport is cleared.
+
+The samplers first look in `Sources/BoardSenseiApp/Resources/Instruments` for a bundled GM-compatible `BoardSensei.sf2`, then the legacy name `Piano.sf2`. Until a licensed, multi-sampled SoundFont is added, the app identifies and uses the macOS General MIDI bank. The mild EQ and room treatment improve that fallback's presentation, but cannot turn its small sample set into a Logic Pro instrument. Do not commit a third-party SoundFont or a Logic factory-library export without redistribution rights; keep the asset's license beside it and audition every exposed program.
 
 ## Lesson narration
 
@@ -70,7 +84,7 @@ Lesson narration is generated ahead of release with the free, local [Kyutai Pock
 
 Generation requires [`uv`](https://docs.astral.sh/uv/getting-started/installation/). Pocket TTS supports Python 3.10 through 3.14, but `uvx` creates and manages that environment independently of the system Python. The first real generation downloads the model; subsequent runs reuse the local cache.
 
-The complete 36-lesson catalog can take several minutes to synthesize on CPU. The generator displays lesson-level progress (`[current/total]`) and an elapsed-time heartbeat every ten seconds. Pocket TTS does not expose a trustworthy percentage within one lesson, so the heartbeat is intentionally time-based. Its own output remains visible, and the manifest is saved after every completed lesson, so an interrupted run can be resumed by running the same command again.
+The complete 56-lesson catalog can take several minutes to synthesize on CPU. The generator displays lesson-level progress (`[current/total]`) and an elapsed-time heartbeat every ten seconds. Pocket TTS does not expose a trustworthy percentage within one lesson, so the heartbeat is intentionally time-based. Its own output remains visible, and the manifest is saved after every completed lesson, so an interrupted run can be resumed by running the same command again.
 
 Each lesson is first written under macOS's per-user temporary directory, commonly `/var/folders/.../T`. This staging file prevents a failed or interrupted synthesis from leaving a corrupt course asset. After Pocket TTS succeeds, the generator atomically saves the WAV under `Sources/BoardSenseiApp/Resources/Narration`, updates the manifest, and deletes the temporary directory.
 
@@ -86,13 +100,20 @@ Generate only missing or changed lessons with the default Alba voice:
 swift run BoardSenseiNarrationTool
 ```
 
+Generate or check one course without changing the other course's assets:
+
+```sh
+swift run BoardSenseiNarrationTool --course hanon-technique
+swift run BoardSenseiNarrationTool --course hanon-technique --check
+```
+
 Generate or review one lesson while tuning pronunciation:
 
 ```sh
 swift run BoardSenseiNarrationTool --lesson i-altered --force
 ```
 
-Before release, require a complete matching asset set:
+Before release, require a complete matching asset set across every registered course:
 
 ```sh
 swift run BoardSenseiNarrationTool --check
@@ -121,23 +142,31 @@ The curriculum map is based on the concepts and chapter progression in Mark Levi
 
 ## Hanon Technique Course
 
-The Hanon course contains 20 self-contained Part I lessons. Each lesson presents the complete public-domain pitch route in a scrollable engraved 2/4 grand staff with sixteenth-note beams, barlines, repeat signs, written ending values, and explicit left- and right-hand finger numbers on every note. The verified catalog retains the written pitches. At practice-session time, Board Sensei raises the complete exercise by one octave when it still fits the C2–C7 piano, placing the left hand in the second visible octave; high-reaching exercises remain in their written register so every target stays playable. That one contextual route drives the score, keyboard highlights, note names, preview, fingering, and validation together. Exercise preview follows the written values at quarter-note BPM, performs the repeated body twice, and then plays the written ending. No external score is required. The note routes were checked against the Mutopia Project's machine-readable Part I engraving, while render QA compares pitch contours, staff crossings, fingering, repeats, and endings with the supplied Schirmer pages; those page scans and editorial text are not bundled or reproduced. Parts II and III remain unavailable until their notes and fingerings can receive the same verification.
+The Hanon course contains 20 self-contained Part I lessons. Each lesson presents the complete public-domain pitch route in a scrollable engraved 2/4 grand staff with sixteenth-note beams, barlines, repeat signs, written ending values, and explicit left- and right-hand finger numbers on every note. The verified catalog retains the written pitches. At practice-session time, Board Sensei raises the complete exercise by one octave when it still fits the C2–C7 piano, placing the left hand in the second visible octave; high-reaching exercises remain in their written register so every target stays playable. That one contextual route drives the score, keyboard highlights, note names, preview, fingering, and validation together. Choosing **Both hands**, **Right hand**, or **Left hand** is silent: it clears the old playhead and scheduled preview generation, presents prompt one for the selected hand mode, and waits for **Hear full exercise**. The selected mode then projects through the engraved score, lesson route, piano targets, audible preview, validation policy, and completion count. Exercise preview follows the written values at quarter-note BPM, performs the repeated body twice, and then plays the written ending. No external score is required. The note routes were checked against the Mutopia Project's machine-readable Part I engraving, while render QA compares pitch contours, staff crossings, fingering, repeats, and endings with the supplied Schirmer pages; those page scans and editorial text are not bundled or reproduced. Parts II and III remain unavailable until their notes and fingerings can receive the same verification.
 
 ## Architecture
 
 ```text
 CoreMIDI callback
     -> bounded AsyncStream of normalized events
-    -> AppModel
-       -> AVAudioUnitSampler
-       -> typed CourseLessonContext
+       -> AppModel on MainActor
+          -> AudioService -> live AVAudioUnitSampler
+          -> UI state and scoring
+          -> C bridge validator
+             -> Rust music-core when its dylib is present
+             -> deterministic native fallback otherwise
+
+typed CourseLessonContext
           -> fresh PracticeSession
              -> Jazz key transposition + prompt staff + melodic/exact-chord policy
              -> Hanon full score + hand/range/fresh-pair policy
-       -> C bridge validator
-          -> Rust music-core when its dylib is present
-          -> deterministic native fallback otherwise
-       -> shared SwiftUI transport, feedback, and piano
+          -> PracticePlaybackTimeline
+             -> absolute audio-render sample times
+                -> preview sampler MIDI scheduler
+             -> pre-rendered click cycle -> metronome player node
+             -> observed playhead -> synchronized staff and piano
+
+shared SwiftUI workspace -> transport, feedback, and piano
 ```
 
 - `Sources/MusicCore` contains platform-independent Swift contracts, the typed course library and practice sessions, the canonical song timeline, MIDI parsing, and test fixtures.
@@ -145,7 +174,7 @@ CoreMIDI callback
 - `Sources/BoardSenseiNarrationTool` is the release-time narration generator; it is not linked into the application.
 - `Sources/BoardSenseiApp/Resources/Narration` contains the hash manifest and reviewed, distributable narration assets.
 - `Sources/CBoardSenseiBridge` loads the Rust engine through a narrow C ABI without making Rust a prerequisite for contributors.
-- `rust/music-core` is the portable engine. MIDI-file import, transport, scoring, and later analysis belong here.
+- `rust/music-core` currently provides deterministic prompt validation: single-note attacks, exact held Jazz chords, fresh paired Hanon attacks, mistakes, and completion state. It does not synthesize sound, own Core Audio, or schedule the current preview transport. MIDI-file import, richer scoring, canonical transport data, and later offline analysis belong there as the portable engine grows.
 - `Tests/MusicCoreTests` verifies deterministic parsing and validation.
 - [`agent.md`](agent.md) is the detailed build and contribution guide for coding agents.
 
@@ -157,7 +186,7 @@ Implemented:
 - Note-on, note-off, sustain, and control-change normalization
 - Bounded event delivery outside CoreMIDI's high-priority callback
 - Live diagnostics with the latest 100 events
-- Local sampler playback, live output metering, volume control, and all-notes-off recovery
+- Independent live and preview samplers in one actor-owned audio graph, a scheduled note track, an audio-engine-clocked PCM metronome cycle, output metering, volume control, and all-notes-off recovery
 - Interactive five-octave piano spanning MIDI C2–C7, with mouse, MIDI, and computer-key input
 - Animated, accessible treble-clef exercise
 - Correct/incorrect validation, streak, mistakes, and lesson progress
@@ -180,7 +209,7 @@ Implemented:
 - A dedicated Settings page shared with the native macOS Settings window, ready for additional preferences
 - A unified lesson/practice workspace with a resizable, scrollable guide containing full lesson theory, narration, preview, instructions, and route
 - Content-addressed studio narration with incremental generation and a safe system-voice fallback
-- One exercise-playback button with an adjacent cycle-mode toggle for continuous, bar-aligned practice loops, persisted tempo, and synchronized staff/piano highlighting
+- One exercise-playback button with an adjacent cycle-mode toggle for continuous, bar-aligned render-timeline practice loops, persisted tempo, and playhead-synchronized staff/piano highlighting
 - Stop-only Space shortcut for active demonstration or loop playback
 - Silently armed metronome with independent volume, accented downbeats, common time signatures, and clicks restricted to exercise playback or explicit scored practice looping
 - Persistent practice-instrument menu with multiple grand pianos, electric pianos, synth leads, and synth pads from compatible SF2/DLS banks
@@ -191,7 +220,7 @@ Implemented:
 
 Next milestones:
 
-1. Bundle a licensed piano SoundFont and add audio-device selection.
+1. License, audition, and bundle a GM-compatible multi-sampled SoundFont, then add audio-device and buffer-size selection.
 2. Migrate the current local profile and mastery records from UserDefaults to SwiftData when multi-profile support is introduced.
 3. Add deterministic lesson generation and richer timing/accuracy scoring in Rust.
 4. Import Standard MIDI Files into the canonical tick-based timeline.
@@ -204,6 +233,7 @@ The implementation follows primary platform guidance:
 
 - [CoreMIDI receive callbacks](https://developer.apple.com/documentation/coremidi/midireceiveblock) run on a high-priority thread, so the callback performs bounded parsing and enqueueing only.
 - [AVAudioUnitSampler](https://developer.apple.com/documentation/avfaudio/avaudiounitsampler) supports DLS and SF2 instruments.
+- [`scheduleMIDIEventBlock`](https://developer.apple.com/documentation/audiotoolbox/auaudiounit/schedulemidieventblock) queues MIDI packets against an audio unit's render sample timeline independently of UI updates.
 - [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) requires alternatives to color-only feedback and appropriate Reduce Motion behavior.
 - [Designing for macOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos/) informs resizable layouts, keyboard access, and information density.
 - [Swift Testing](https://developer.apple.com/documentation/testing) is used for unit tests and works directly with Swift Package Manager.
