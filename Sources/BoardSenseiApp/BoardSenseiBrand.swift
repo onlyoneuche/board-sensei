@@ -34,7 +34,8 @@ struct BoardSenseiLockup: View {
             BoardSenseiMark(size: markSize)
             VStack(alignment: .leading, spacing: 0) {
                 Text("BOARD SENSEI")
-                    .font(.headline.weight(.bold))
+                    .font(.system(size: 12, weight: .semibold))
+                    .tracking(1.2)
                 Text("Learn it. Hear it. Play it.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)

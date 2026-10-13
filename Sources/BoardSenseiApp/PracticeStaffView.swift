@@ -10,18 +10,22 @@ struct PracticeStaffView: View {
     let layout: NotationStaffLayout
     let jazzPracticeKey: JazzPracticeKey
     let reduceMotion: Bool
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var scene = PracticeStaffScene()
 
     var body: some View {
         SpriteView(scene: scene, options: [.allowsTransparency])
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay { RoundedRectangle(cornerRadius: 7).stroke(PracticeTheme.separator, lineWidth: 1) }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius))
+            .overlay { RoundedRectangle(cornerRadius: AppTheme.radius).stroke(PracticeTheme.separator, lineWidth: 1) }
             .onAppear { updateScene() }
             .onChange(of: expectedPitches) { _, _ in updateScene() }
             .onChange(of: fingerings) { _, _ in updateScene() }
             .onChange(of: feedback) { _, _ in updateScene() }
             .onChange(of: layout) { _, _ in updateScene() }
             .onChange(of: jazzPracticeKey) { _, _ in updateScene() }
+            .onChange(of: colorScheme) { _, _ in updateScene() }
+            .onChange(of: contrast) { _, _ in updateScene() }
             .onChange(of: reduceMotion) { _, _ in updateScene() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityStaffName)
@@ -43,7 +47,9 @@ struct PracticeStaffView: View {
             feedback: feedback,
             layout: layout,
             jazzPracticeKey: jazzPracticeKey,
-            reduceMotion: reduceMotion
+            reduceMotion: reduceMotion,
+            darkAppearance: colorScheme == .dark,
+            increasedContrast: contrast == .increased
         )
     }
 
@@ -75,6 +81,11 @@ final class PracticeStaffScene: SKScene {
     private var layout: NotationStaffLayout = .treble
     private var jazzPracticeKey = JazzPracticeKey.c
     private var reduceMotion = false
+    private var darkAppearance = false
+    private var increasedContrast = false
+
+    private var ink: NSColor { NSColor(calibratedWhite: darkAppearance ? 0.92 : 0.16, alpha: 1) }
+    private var secondaryInk: NSColor { NSColor(calibratedWhite: darkAppearance ? 0.65 : 0.42, alpha: 1) }
 
     override init(size: CGSize = CGSize(width: 900, height: 420)) {
         super.init(size: size)
@@ -101,7 +112,9 @@ final class PracticeStaffScene: SKScene {
         feedback: PracticeFeedback,
         layout: NotationStaffLayout,
         jazzPracticeKey: JazzPracticeKey,
-        reduceMotion: Bool
+        reduceMotion: Bool,
+        darkAppearance: Bool,
+        increasedContrast: Bool
     ) {
         let feedbackChanged = self.feedback != feedback
         self.pitches = pitches
@@ -110,6 +123,8 @@ final class PracticeStaffScene: SKScene {
         self.layout = layout
         self.jazzPracticeKey = jazzPracticeKey
         self.reduceMotion = reduceMotion
+        self.darkAppearance = darkAppearance
+        self.increasedContrast = increasedContrast
         render(animateFeedback: feedbackChanged)
     }
 
@@ -117,8 +132,8 @@ final class PracticeStaffScene: SKScene {
         content.removeAllChildren()
         guard size.width > 0, size.height > 0 else { return }
 
-        let panel = SKShapeNode(rectOf: size, cornerRadius: 7)
-        panel.fillColor = PracticeTheme.panelNSColor
+        let panel = SKShapeNode(rectOf: size, cornerRadius: AppTheme.radius)
+        panel.fillColor = NSColor(calibratedWhite: darkAppearance ? 0.16 : 0.985, alpha: 1)
         panel.strokeColor = .clear
         panel.position = CGPoint(x: size.width / 2, y: size.height / 2)
         panel.zPosition = -10
@@ -136,7 +151,7 @@ final class PracticeStaffScene: SKScene {
         let label = SKLabelNode(text: promptLabel)
         label.fontName = NSFont.systemFont(ofSize: 18, weight: .semibold).fontName
         label.fontSize = 18
-        label.fontColor = .secondaryLabelColor
+        label.fontColor = secondaryInk
         label.position = CGPoint(x: size.width * 0.58, y: max(18, size.height * 0.07))
         content.addChild(label)
     }
@@ -169,7 +184,7 @@ final class PracticeStaffScene: SKScene {
         let brace = SKLabelNode(text: "{")
         brace.fontName = NSFont(name: "Times New Roman", size: min(190, size.height * 0.34))?.fontName
         brace.fontSize = min(190, size.height * 0.34)
-        brace.fontColor = NSColor.labelColor.withAlphaComponent(0.8)
+        brace.fontColor = ink
         brace.verticalAlignmentMode = .center
         brace.position = CGPoint(x: size.width * 0.095, y: (trebleCenter + bassCenter) / 2)
         brace.xScale = 0.56
@@ -186,8 +201,8 @@ final class PracticeStaffScene: SKScene {
             path.move(to: CGPoint(x: startX, y: centerY + CGFloat(offset) * lineSpacing))
             path.addLine(to: CGPoint(x: endX, y: centerY + CGFloat(offset) * lineSpacing))
             let line = SKShapeNode(path: path)
-            line.strokeColor = NSColor.labelColor.withAlphaComponent(0.55)
-            line.lineWidth = 2
+            line.strokeColor = ink.withAlphaComponent(increasedContrast ? 1 : 0.6)
+            line.lineWidth = increasedContrast ? 2 : 1
             content.addChild(line)
         }
 
@@ -195,7 +210,7 @@ final class PracticeStaffScene: SKScene {
         clefNode.fontName = NSFont(name: "Apple Symbols", size: lineSpacing * (clef == .treble ? 4.9 : 3.5))?.fontName
             ?? NSFont.systemFont(ofSize: lineSpacing * 4).fontName
         clefNode.fontSize = lineSpacing * (clef == .treble ? 4.9 : 3.5)
-        clefNode.fontColor = .labelColor
+        clefNode.fontColor = ink
         clefNode.verticalAlignmentMode = .center
         clefNode.position = CGPoint(
             x: size.width * 0.2,
@@ -222,7 +237,7 @@ final class PracticeStaffScene: SKScene {
                 accidental.fontName = NSFont(name: "Times New Roman", size: lineSpacing * 1.35)?.fontName
                     ?? NSFont.systemFont(ofSize: lineSpacing * 1.2).fontName
                 accidental.fontSize = lineSpacing * 1.35
-                accidental.fontColor = .labelColor
+                accidental.fontColor = ink
                 accidental.horizontalAlignmentMode = .center
                 accidental.verticalAlignmentMode = .center
                 accidental.position = CGPoint(
@@ -246,7 +261,7 @@ final class PracticeStaffScene: SKScene {
                 let fingerLabel = SKLabelNode(text: String(fingering.finger))
                 fingerLabel.fontName = NSFont.systemFont(ofSize: 16, weight: .bold).fontName
                 fingerLabel.fontSize = 16
-                fingerLabel.fontColor = .labelColor
+                fingerLabel.fontColor = ink
                 fingerLabel.horizontalAlignmentMode = .center
                 fingerLabel.verticalAlignmentMode = .center
                 fingerLabel.position = CGPoint(
@@ -322,8 +337,8 @@ final class PracticeStaffScene: SKScene {
         path.move(to: CGPoint(x: x - spacing, y: y))
         path.addLine(to: CGPoint(x: x + spacing, y: y))
         let line = SKShapeNode(path: path)
-        line.strokeColor = NSColor.labelColor.withAlphaComponent(0.55)
-        line.lineWidth = 2
+        line.strokeColor = ink.withAlphaComponent(increasedContrast ? 1 : 0.6)
+        line.lineWidth = increasedContrast ? 2 : 1
         content.addChild(line)
     }
 }

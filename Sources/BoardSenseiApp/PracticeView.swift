@@ -10,9 +10,9 @@ struct PracticeView: View {
             PracticeTheme.workspace.ignoresSafeArea()
 
             GeometryReader { geometry in
-                VStack(spacing: 10) {
+                VStack(spacing: 12) {
                     ScrollView {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 12) {
                             header
                             progressCard
                             notationContent(for: geometry.size.height)
@@ -43,9 +43,10 @@ struct PracticeView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 7) {
+                StudioSectionLabel(title: "Live practice")
                 Text(model.activeLesson.title)
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.system(size: 24, weight: .medium))
                 Text(headerDetail)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -73,6 +74,11 @@ struct PracticeView: View {
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: model.lessonProgress)
                 .accessibilityLabel("Lesson progress")
                 .accessibilityValue("\(model.completedNotes) of \(model.practicePromptCount) prompts")
+            Text("\(model.completedNotes)/\(model.practicePromptCount)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Divider().frame(height: 24)
             Label("\(model.streak)", systemImage: "flame.fill")
                 .foregroundStyle(.orange)
                 .accessibilityLabel("Current streak: \(model.streak)")
@@ -111,9 +117,9 @@ struct PracticeView: View {
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 12)
-        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
+        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.radius))
         .overlay {
-            RoundedRectangle(cornerRadius: 7).stroke(PracticeTheme.separator, lineWidth: 1)
+            RoundedRectangle(cornerRadius: AppTheme.radius).stroke(PracticeTheme.separator, lineWidth: 1)
         }
         .overlay(alignment: .leading) {
             Rectangle()
@@ -153,8 +159,7 @@ struct PracticeView: View {
         if let exercise = model.activeHanonPracticeExercise {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Label("Complete score", systemImage: "music.quarternote.3")
-                        .font(.headline)
+                    StudioSectionLabel(title: "Complete score")
                     Spacer()
                     Text(scoreSummary)
                         .font(.caption.monospacedDigit())

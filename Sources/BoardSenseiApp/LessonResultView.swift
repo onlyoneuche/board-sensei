@@ -15,12 +15,12 @@ struct LessonCompletionPanel: View {
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundStyle(.green)
                     .frame(width: 38, height: 38)
-                    .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                    .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: AppTheme.radius))
                     .scaleEffect(revealed ? 1 : 0.82)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(completionTitle)
-                        .font(.headline)
+                        .font(.system(size: 16, weight: .medium))
                     HStack(spacing: 12) {
                         Text(result.accuracy.formatted(.percent.precision(.fractionLength(0))) + " accuracy")
                         Text("\(result.mistakes) mistakes")
@@ -87,9 +87,9 @@ struct LessonCompletionPanel: View {
             }
         }
         .padding(14)
-        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
+        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.radius))
         .overlay {
-            RoundedRectangle(cornerRadius: 7)
+            RoundedRectangle(cornerRadius: AppTheme.radius)
                 .stroke(Color.green.opacity(0.55), lineWidth: 1)
         }
         .overlay(alignment: .leading) {

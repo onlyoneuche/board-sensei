@@ -10,7 +10,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
+            AppTheme.canvas.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 topBar
@@ -37,11 +37,14 @@ struct OnboardingView: View {
         HStack {
             BoardSenseiLockup(markSize: 40)
             Spacer()
-            HStack(spacing: 7) {
+            HStack(spacing: 12) {
+                Text("0\(step + 1) / 04")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
                 ForEach(0..<stepCount, id: \.self) { index in
-                    Capsule()
-                        .fill(index <= step ? AppTheme.accent : Color.secondary.opacity(0.22))
-                        .frame(width: index == step ? 26 : 8, height: 8)
+                    Rectangle()
+                        .fill(index <= step ? AppTheme.accent : AppTheme.line)
+                        .frame(width: 28, height: 3)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -51,7 +54,8 @@ struct OnboardingView: View {
                 .buttonStyle(.borderless)
         }
         .padding(.horizontal, 26)
-        .frame(height: 70)
+        .frame(height: 76)
+        .background(AppTheme.surface)
     }
 
     private var content: some View {
@@ -138,8 +142,7 @@ struct OnboardingView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .background(.background, in: RoundedRectangle(cornerRadius: 12))
-                        .overlay { RoundedRectangle(cornerRadius: 12).stroke(.separator) }
+                        .studioPanel()
                     }
                 }
             }
@@ -161,7 +164,8 @@ struct OnboardingView: View {
             Spacer()
         }
         .padding(18)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 4)
+        .studioPanel()
         .accessibilityElement(children: .combine)
     }
 
@@ -218,15 +222,14 @@ struct OnboardingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(eyebrow)
-                        .font(.caption.bold())
-                        .foregroundStyle(AppTheme.accent)
+                    StudioSectionLabel(title: eyebrow)
                     Text(title)
-                        .font(.system(size: 34, weight: .semibold))
+                        .font(.system(size: 36, weight: .medium))
                     Text(detail)
-                        .font(.title3)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                StudioRule()
                 content()
             }
             .frame(maxWidth: 760, alignment: .leading)
@@ -247,7 +250,7 @@ struct OnboardingView: View {
                     .font(.title2)
                     .foregroundStyle(selected ? Color.white : AppTheme.accent)
                     .frame(width: 44, height: 44)
-                    .background(selected ? AppTheme.accent : AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+                    .background(selected ? AppTheme.accent : AppTheme.inset, in: RoundedRectangle(cornerRadius: AppTheme.radius))
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title).font(.headline)
                     Text(detail)
@@ -259,14 +262,14 @@ struct OnboardingView: View {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selected ? AppTheme.accent : Color.secondary)
             }
-            .padding(16)
+            .padding(20)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(.background, in: RoundedRectangle(cornerRadius: 12))
+        .background(selected ? AppTheme.accent.opacity(0.05) : AppTheme.surface, in: RoundedRectangle(cornerRadius: AppTheme.radius))
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(selected ? AppTheme.accent : Color.secondary.opacity(0.2), lineWidth: selected ? 2 : 1)
+            RoundedRectangle(cornerRadius: AppTheme.radius)
+                .strokeBorder(selected ? AppTheme.accent : AppTheme.line, lineWidth: 1)
         }
     }
 
@@ -284,7 +287,8 @@ struct OnboardingView: View {
             .disabled(step == stepCount - 1 && !landedFirstNote)
         }
         .padding(.horizontal, 26)
-        .frame(height: 72)
+        .frame(height: 76)
+        .background(AppTheme.surface)
     }
 
     private func move(to newStep: Int) {

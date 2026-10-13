@@ -7,35 +7,41 @@ struct MIDIDiagnosticsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("MIDI Lab").font(.largeTitle.bold())
-                    Text(model.connectionMessage).foregroundStyle(.secondary)
-                }
+                StudioPageHeader(eyebrow: "Instrument connection", title: "MIDI Lab", detail: model.connectionMessage)
                 Spacer()
                 Button("Panic", systemImage: "exclamationmark.triangle") { model.audio.panic() }
                 Button("Disconnect", systemImage: "eject") { model.disconnectMIDI() }
                     .disabled(model.selectedDeviceID == nil)
             }
-            .padding(24)
+            .padding(28)
+            StudioRule().padding(.horizontal, 28)
 
             if model.selectedDeviceID != nil {
                 MIDIControllerKeyboardView()
                     .padding(.horizontal, 24)
                     .padding(.bottom, 16)
+                    .padding(.top, 20)
                     .transition(.opacity)
             }
 
             HSplitView {
-                deviceList.frame(minWidth: 280)
-                eventLog.frame(minWidth: 420)
+                deviceList.frame(minWidth: 230)
+                eventLog.frame(minWidth: 340)
             }
+            .padding(24)
         }
+        .background(AppTheme.canvas)
         .navigationTitle("MIDI Lab")
     }
 
     private var deviceList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Input sources", systemImage: "cable.connector").font(.headline)
+            HStack {
+                StudioSectionLabel(title: "Input sources")
+                Spacer()
+                Image(systemName: "cable.connector").foregroundStyle(AppTheme.accent)
+            }
+            Divider()
             if model.devices.isEmpty {
                 ContentUnavailableView(
                     "No MIDI input",
@@ -61,18 +67,21 @@ struct MIDIDiagnosticsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .listStyle(.inset)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .studioPanel()
     }
 
     private var eventLog: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Latest 100 events", systemImage: "waveform.path.ecg").font(.headline)
+                StudioSectionLabel(title: "Event monitor")
                 Spacer()
-                Text("\(model.recentEvents.count)").monospacedDigit().foregroundStyle(.secondary)
+                Text("\(model.recentEvents.count) / 100").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             if model.recentEvents.isEmpty {
                 ContentUnavailableView(
@@ -89,10 +98,13 @@ struct MIDIDiagnosticsView: View {
                         Text("\(event.timestamp)").font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
                     }
                 }
-                .listStyle(.inset)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .studioPanel()
     }
 
     private func icon(for event: NormalizedMIDIEvent) -> String {

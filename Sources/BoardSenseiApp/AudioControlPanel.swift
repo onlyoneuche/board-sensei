@@ -25,8 +25,8 @@ struct AudioControlPanel: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
-        .background(PracticeTheme.raised, in: RoundedRectangle(cornerRadius: 6))
-        .overlay { RoundedRectangle(cornerRadius: 6).stroke(PracticeTheme.separator, lineWidth: 1) }
+        .background(PracticeTheme.raised, in: RoundedRectangle(cornerRadius: AppTheme.radius))
+        .overlay { RoundedRectangle(cornerRadius: AppTheme.radius).stroke(PracticeTheme.separator, lineWidth: 1) }
     }
 
     private var instrumentMenu: some View {
@@ -71,13 +71,13 @@ private struct VerticalLevelMeter: View {
     var body: some View {
         VStack(spacing: 2) {
             ForEach(Array((0..<segmentCount).reversed()), id: \.self) { index in
-                Capsule()
+                Rectangle()
                     .fill(segmentColor(index).opacity(isLit(index) ? 1 : 0.14))
                     .frame(width: 13, height: 5)
             }
         }
         .padding(4)
-        .background(Color.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 5))
+        .background(PracticeTheme.inset, in: RoundedRectangle(cornerRadius: 5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Output level")
         .accessibilityValue("\(Int(level * 100)) percent")
@@ -90,7 +90,7 @@ private struct VerticalLevelMeter: View {
     private func segmentColor(_ index: Int) -> Color {
         if index >= 15 { return .red }
         if index >= 12 { return .yellow }
-        return .green
+        return PracticeTheme.accent
     }
 }
 

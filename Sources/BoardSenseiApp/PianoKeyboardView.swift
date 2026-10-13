@@ -17,7 +17,10 @@ struct PianoKeyboardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Five-octave practice piano").font(.headline)
+                HStack(spacing: 10) {
+                    StudioSectionLabel(title: "Practice piano")
+                    Text("C2–C7").font(.caption.monospaced()).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Label(
                     hasKeyboardFocus ? "Computer keys active" : "Click piano to enable keys",
@@ -112,8 +115,7 @@ struct MIDIControllerKeyboardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Controller monitor", systemImage: "pianokeys")
-                .font(.headline)
+            StudioSectionLabel(title: "Controller monitor")
 
             FiveOctaveKeyboardLayout(
                 minimumWidth: minimumKeyboardWidth,
@@ -209,8 +211,8 @@ private struct FiveOctaveKeyboardLayout<KeyContent: View>: View {
             }
         }
         .frame(width: width, height: keyboardHeight)
-        .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(Color.black.opacity(0.9), in: RoundedRectangle(cornerRadius: AppTheme.radius))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius))
     }
 }
 
@@ -220,10 +222,10 @@ private struct MIDIControllerKeyView: View {
     let activeIndicatorColor: Color
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: key.isBlack ? 5 : 4)
+        let shape = RoundedRectangle(cornerRadius: key.isBlack ? 2 : 3)
 
         shape
-            .fill(isActive ? activeIndicatorColor : key.isBlack ? Color.black : Color.white)
+            .fill(isActive ? activeIndicatorColor : key.isBlack ? Color(white: 0.10) : Color(white: 0.985))
             .overlay {
                 shape.stroke(
                     isActive
@@ -232,7 +234,7 @@ private struct MIDIControllerKeyView: View {
                     lineWidth: isActive ? 2 : 1
                 )
             }
-            .shadow(color: .black.opacity(key.isBlack ? 0.34 : 0.16), radius: 2, y: 2)
+            .shadow(color: .black.opacity(key.isBlack ? 0.24 : 0.08), radius: 1, y: 1)
             .scaleEffect(isActive ? CGSize(width: 0.98, height: 0.975) : CGSize(width: 1, height: 1), anchor: .top)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(noteName(key.note))
@@ -258,7 +260,7 @@ private struct PianoKeyView: View {
         ZStack(alignment: .bottom) {
             keyShape
                 .fill(keyFillColor)
-                .shadow(color: .black.opacity(key.isBlack ? 0.34 : 0.16), radius: 2, y: 2)
+                .shadow(color: .black.opacity(key.isBlack ? 0.24 : 0.08), radius: 1, y: 1)
 
             keyShape
                 .stroke(keyBorderColor, lineWidth: isActive || isExpected ? 2 : 1)
@@ -316,7 +318,7 @@ private struct PianoKeyView: View {
     }
 
     private var keyShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: key.isBlack ? 5 : 4)
+        RoundedRectangle(cornerRadius: key.isBlack ? 2 : 3)
     }
 
     private var keyAccessibilityValue: String {
@@ -329,7 +331,7 @@ private struct PianoKeyView: View {
     private var keyFillColor: Color {
         if isActive { return activeIndicatorColor }
         if isExpected { return expectedIndicatorColor }
-        return key.isBlack ? .black : .white
+        return key.isBlack ? Color(white: 0.10) : Color(white: 0.985)
     }
 
     private var keyBorderColor: Color {

@@ -22,19 +22,30 @@ struct RootView: View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 BoardSenseiLockup(markSize: 38)
-                    .padding(14)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 22)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Divider()
+                StudioSectionLabel(title: "Workspace")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 22)
+                    .padding(.bottom, 10)
                 List(AppModel.Destination.allCases, selection: $model.destination) { destination in
                     Label(destination.rawValue, systemImage: destination.symbol)
                         .tag(destination)
-                        .padding(.vertical, 5)
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.vertical, 9)
                 }
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
                 .safeAreaInset(edge: .bottom) {
                     MIDIStatusCard()
                         .padding(12)
                 }
             }
+            .background(AppTheme.surface)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 232, max: 280)
         } detail: {
             switch model.destination ?? .courses {
             case .courses: CoursesView()
@@ -61,13 +72,15 @@ private struct PracticeSessionRootView: View {
             }
         }
         .tint(PracticeTheme.accent)
-        .preferredColorScheme(.dark)
+        .background(PracticeTheme.workspace)
     }
 
     private var practiceTopBar: some View {
         HStack(spacing: 8) {
-            Label(model.activeLesson.title, systemImage: "pianokeys")
-                .font(.headline)
+            VStack(alignment: .leading, spacing: 3) {
+                StudioSectionLabel(title: "Class workspace")
+                Text(model.activeLesson.title).font(.system(size: 13, weight: .semibold))
+            }
                 .lineLimit(1)
             Spacer()
             if model.supportsPracticeKeySelection {
@@ -81,7 +94,7 @@ private struct PracticeSessionRootView: View {
             navigationButton("Settings", symbol: "gearshape.fill", destination: .settings)
         }
         .padding(.horizontal, 16)
-        .frame(height: 48)
+        .frame(height: 58)
         .background(PracticeTheme.toolbar)
     }
 
@@ -93,9 +106,12 @@ private struct PracticeSessionRootView: View {
         Button {
             model.leavePractice(for: destination)
         } label: {
-            Label(title, systemImage: symbol)
+            Image(systemName: symbol)
+                .font(.system(size: 14))
+                .frame(width: 28, height: 28)
         }
         .buttonStyle(.borderless)
+        .accessibilityLabel(title)
         .quickHelp(title, "Leave class mode and open \(title). Your lesson completion remains saved.")
     }
 }
@@ -129,9 +145,9 @@ private struct JazzPracticeKeyControl: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 30)
-            .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
+            .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.radius))
             .overlay {
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: AppTheme.radius)
                     .stroke(PracticeTheme.separator, lineWidth: 1)
             }
         }
@@ -220,9 +236,9 @@ private struct MetronomeTransportControls: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
+        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.radius))
         .overlay {
-            RoundedRectangle(cornerRadius: 7)
+            RoundedRectangle(cornerRadius: AppTheme.radius)
                 .stroke(PracticeTheme.separator, lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
@@ -248,11 +264,9 @@ private struct LessonGuideSidebar: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 7) {
-                    Text("CURRENT LESSON")
-                        .font(.caption2.bold())
-                        .foregroundStyle(PracticeTheme.accent)
+                    StudioSectionLabel(title: "Current lesson")
                     Text(model.activeLesson.title)
-                        .font(.title2.bold())
+                        .font(.system(size: 25, weight: .medium))
                 }
                 .padding(15)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -587,7 +601,10 @@ private struct LessonGuideSidebar: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: symbol).font(.headline)
+            HStack(spacing: 8) {
+                Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(AppTheme.accent)
+                StudioSectionLabel(title: title)
+            }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -761,7 +778,7 @@ private struct MIDIStatusCard: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
+        .studioPanel()
         .accessibilityElement(children: .combine)
     }
 }

@@ -7,93 +7,109 @@ struct CoursesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 34) {
+                VStack(spacing: 28) {
                     studioHero
                     learningStatus
                     courseShelf
                 }
-                .padding(.vertical, 34)
+                .padding(.vertical, 28)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+            .background(AppTheme.canvas.ignoresSafeArea())
             .navigationTitle("Courses")
         }
     }
 
     private var studioHero: some View {
-        VStack(spacing: 14) {
-            BoardSenseiMark(size: 156)
-                .shadow(color: .black.opacity(0.2), radius: 18, y: 9)
-
-            VStack(spacing: 5) {
-                Text("BOARD SENSEI")
-                    .font(.system(size: 24, weight: .bold))
-                    .tracking(1.2)
-                Text("Learn it. Hear it. Play it.")
-                    .font(.title3)
+        VStack(spacing: 18) {
+            HStack {
+                StudioSectionLabel(title: "Your practice studio")
+                Spacer()
+                Label("Jazz & technique", systemImage: "pianokeys")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Text("Choose your practice path")
-                .font(.system(size: 34, weight: .semibold))
-                .padding(.top, 5)
+            StudioRule()
+            HStack(spacing: 28) {
+                CourseArtwork()
+                    .frame(maxWidth: 180)
+                VStack(spacing: 12) {
+                    BoardSenseiMark(size: 112)
+                    Text("Choose your practice path")
+                        .font(.system(size: 30, weight: .medium))
+                    Text("Learn it. Hear it. Play it.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                CourseArtwork(technique: true)
+                    .frame(maxWidth: 180)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
         .accessibilityElement(children: .combine)
     }
 
     private var learningStatus: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
             if model.practiceStreaksEnabled {
-                statusChip(
-                    model.practiceDayStreak > 0 ? "\(model.practiceDayStreak)-day rhythm" : "Start a rhythm",
-                    symbol: "flame.fill",
-                    color: .orange,
+                statusMetric(
+                    "Practice rhythm", value: "\(model.practiceDayStreak)", unit: "DAYS",
+                    symbol: "flame", color: .orange,
                     help: "Your practice rhythm advances on days when you complete a lesson."
                 )
+                Divider().padding(.vertical, 16)
             }
-            statusChip(
-                "\(completedLessonCount) practised",
-                symbol: "checkmark.circle.fill",
-                color: .green,
+            statusMetric(
+                "Practised", value: "\(completedLessonCount)", unit: "LESSONS",
+                symbol: "checkmark.circle", color: .green,
                 help: "Lessons with at least one completed pass across every course."
             )
-            statusChip(
-                "\(masteredLessonCount) mastered",
-                symbol: "seal.fill",
-                color: AppTheme.accent,
+            Divider().padding(.vertical, 16)
+            statusMetric(
+                "Mastered", value: "\(masteredLessonCount)", unit: "LESSONS",
+                symbol: "seal", color: AppTheme.accent,
                 help: "Lessons mastered through accurate repetition."
             )
         }
-        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .studioPanel()
+        .padding(.horizontal, 32)
         .accessibilityElement(children: .contain)
     }
 
-    private func statusChip(_ text: String, symbol: String, color: Color, help: String) -> some View {
-        Label(text, systemImage: symbol)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
-            .overlay { Capsule().stroke(color.opacity(0.3), lineWidth: 1) }
-            .help(help)
+    private func statusMetric(
+        _ title: String, value: String, unit: String,
+        symbol: String, color: Color, help: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                StudioSectionLabel(title: title)
+                Spacer()
+                Image(systemName: symbol).font(.caption).foregroundStyle(color)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(value).font(.system(size: 32, weight: .light).monospacedDigit())
+                Text(unit).font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(help)
+        .accessibilityElement(children: .combine)
     }
 
     private var courseShelf: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.18))
-                    .frame(height: 1)
+            HStack {
+                StudioSectionLabel(title: "Course library")
+                Spacer()
                 Image(systemName: "arrow.left.and.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(AppTheme.accent)
-                    .frame(width: 30, height: 24)
-                    .background(AppTheme.accent.opacity(0.1), in: Capsule())
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.18))
-                    .frame(height: 1)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 32)
             .accessibilityElement(children: .ignore)
@@ -101,7 +117,7 @@ struct CoursesView: View {
 
             GeometryReader { geometry in
                 ScrollView(.horizontal) {
-                    LazyHStack(spacing: 18) {
+                    LazyHStack(spacing: 16) {
                         NavigationLink {
                             CourseDetailView(
                                 course: JazzCourseCatalog.course,
@@ -153,12 +169,12 @@ struct CoursesView: View {
                             isAvailable: false
                         )
                     }
-                    .padding(.horizontal, max(32, (geometry.size.width - 1_212) / 2))
+                    .padding(.horizontal, max(32, (geometry.size.width - 1_112) / 2))
                     .padding(.vertical, 3)
                 }
                 .scrollIndicators(.visible)
             }
-            .frame(height: 336)
+            .frame(height: 354)
         }
     }
 
@@ -197,90 +213,68 @@ private struct CourseCatalogCard: View {
     let isAvailable: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                Image(systemName: symbol)
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 64, height: 64)
-                    .background(color, in: RoundedRectangle(cornerRadius: 14))
-                Spacer()
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
                 Text(number)
-                    .font(.system(size: 34, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(isAvailable ? color : Color.secondary)
             }
-
+            CourseArtwork(technique: number == "02", available: isAvailable)
+                .frame(height: 78)
+                .background(AppTheme.inset)
+                .overlay { Rectangle().strokeBorder(AppTheme.line, lineWidth: 0.5) }
             VStack(alignment: .leading, spacing: 7) {
-                Text(title).font(.system(size: 26, weight: .semibold))
+                Text(title).font(.system(size: 24, weight: .medium))
                 Text(subtitle)
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
             Spacer(minLength: 0)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 9) {
-                if isAvailable {
-                    HStack {
-                        Text(detail)
-                        Spacer()
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(detail).font(.caption)
+                    Spacer()
+                    if isAvailable {
                         Text("\(Int(progress * 100))%")
-                    }
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    ProgressView(value: progress).tint(color)
-                } else {
-                    HStack {
-                        Label(detail, systemImage: "clock")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("COMING SOON")
-                            .font(.caption2.bold())
-                            .foregroundStyle(.secondary)
+                            .font(.caption.monospacedDigit())
                     }
                 }
-
+                .foregroundStyle(.secondary)
+                if isAvailable {
+                    ProgressView(value: progress).tint(color)
+                        .accessibilityLabel("\(title) course progress")
+                        .accessibilityValue("\(Int(progress * 100)) percent")
+                }
+                StudioRule()
                 HStack {
-                    Text(isAvailable ? (progress > 0 ? "CONTINUE" : "START") : "PLANNED")
-                        .font(.caption2.bold())
-                        .tracking(0.8)
+                    Text(isAvailable ? (progress > 0 ? "CONTINUE" : "START COURSE") : "COMING SOON")
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(1)
                     Spacer()
-                    Image(systemName: isAvailable ? "arrow.right" : "lock.fill")
-                        .font(.caption.bold())
+                    Image(systemName: isAvailable ? "arrow.up.right" : "lock")
+                        .font(.caption)
                 }
                 .foregroundStyle(isAvailable ? color : Color.secondary)
             }
         }
-        .padding(22)
-        .frame(width: 392, height: 314, alignment: .topLeading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 22))
+        .padding(20)
+        .frame(width: 360, height: 334, alignment: .topLeading)
+        .studioPanel()
         .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(
-                    isAvailable
-                        ? color.opacity(isHovering ? 0.72 : 0.42)
-                        : Color.secondary.opacity(0.2),
-                    lineWidth: isAvailable && isHovering ? 1.5 : 1
-                )
+            RoundedRectangle(cornerRadius: AppTheme.radius)
+                .strokeBorder(isHovering ? color : Color.clear, lineWidth: 1)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 22))
-        .opacity(isAvailable ? 1 : 0.72)
-        .scaleEffect(isAvailable && isHovering ? 1.012 : 1)
-        .shadow(
-            color: .black.opacity(isAvailable && isHovering ? 0.2 : 0.08),
-            radius: isAvailable && isHovering ? 14 : 5,
-            y: isAvailable && isHovering ? 7 : 3
-        )
+        .contentShape(Rectangle())
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: isHovering)
-        .onHover { hovering in
-            isHovering = isAvailable && hovering
-        }
+        .onHover { hovering in isHovering = isAvailable && hovering }
         .accessibilityElement(children: .combine)
     }
+
 }
 
 private struct CourseDetailView: View {
@@ -317,7 +311,7 @@ private struct CourseDetailView: View {
             .frame(maxWidth: 1_100)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(AppTheme.canvas.ignoresSafeArea())
         .navigationTitle(course.title)
         .onAppear {
             guard !appliedLearnerStartingPoint else { return }
@@ -333,14 +327,15 @@ private struct CourseDetailView: View {
     private var courseHeader: some View {
         HStack(alignment: .top, spacing: 22) {
             Image(systemName: symbol)
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(levelColor)
                 .frame(width: 72, height: 72)
-                .background(levelColor, in: RoundedRectangle(cornerRadius: 16))
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: AppTheme.radius))
+                .overlay { RoundedRectangle(cornerRadius: AppTheme.radius).strokeBorder(AppTheme.line) }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(course.title)
-                    .font(.system(size: 32, weight: .semibold))
+                    .font(.system(size: 32, weight: .medium))
                 Label("\(course.lessonCount) playable lessons", systemImage: "pianokeys")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(levelColor)
@@ -398,7 +393,7 @@ private struct CourseDetailView: View {
             Spacer()
         }
         .padding(16)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
+        .studioPanel()
         .accessibilityElement(children: .contain)
     }
 
@@ -426,14 +421,13 @@ private struct CourseDetailView: View {
                 HStack(alignment: .top, spacing: 14) {
                     Text("\(number)")
                         .font(.headline.monospacedDigit())
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(levelColor, in: Circle())
+                        .foregroundStyle(levelColor)
+                        .frame(width: 36, height: 36)
+                        .background(AppTheme.inset)
+                        .overlay { Rectangle().strokeBorder(AppTheme.line) }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("CHAPTER \(number)")
-                            .font(.caption2.bold())
-                            .foregroundStyle(levelColor)
-                        Text(module.title).font(.title3.bold())
+                        StudioSectionLabel(title: "Chapter \(number)")
+                        Text(module.title).font(.system(size: 18, weight: .medium))
                     }
                     Spacer()
                     Label(
@@ -465,8 +459,7 @@ private struct CourseDetailView: View {
                 }
             }
         }
-        .background(.background.opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
-        .overlay { RoundedRectangle(cornerRadius: 20).stroke(.separator.opacity(0.45)) }
+        .studioPanel()
     }
 
     private func lessonRow(_ lesson: PracticeLesson, number: Int) -> some View {
@@ -494,7 +487,8 @@ private struct CourseDetailView: View {
                 .foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
-        .padding(16)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .help(lesson.objective)
     }
 

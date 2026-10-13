@@ -57,8 +57,8 @@ struct PracticeScoreView: View {
                 }
             }
         }
-        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: 7))
-        .overlay { RoundedRectangle(cornerRadius: 7).stroke(PracticeTheme.separator, lineWidth: 1) }
+        .background(PracticeTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.radius))
+        .overlay { RoundedRectangle(cornerRadius: AppTheme.radius).stroke(PracticeTheme.separator, lineWidth: 1) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Complete engraved score for \(lessonTitle)")
     }
@@ -282,7 +282,7 @@ struct ScoreSystemView: View {
 
     private func drawMeasureNumber(context: inout GraphicsContext, number: Int, x: CGFloat) {
         context.draw(
-            Text(String(number)).font(.system(size: 8, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)),
+            Text(String(number)).font(.system(size: 8, weight: .medium).monospacedDigit()).foregroundStyle(Color.secondary),
             at: CGPoint(x: x, y: 29),
             anchor: .leading
         )
@@ -306,13 +306,13 @@ struct ScoreSystemView: View {
         return scoreInk
     }
 
-    private var scoreInk: Color { Color.white.opacity(0.92) }
+    private var scoreInk: Color { Color.primary }
 
     private func strokeLine(
         context: inout GraphicsContext,
         from: CGPoint,
         to: CGPoint,
-        color: Color = Color.white.opacity(0.86),
+        color: Color = Color.primary.opacity(0.8),
         width: CGFloat
     ) {
         var path = Path()
